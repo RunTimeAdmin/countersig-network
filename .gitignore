@@ -5,6 +5,10 @@ cache/
 # Dependencies (installed by forge install)
 lib/
 
+# SDK
+packages/sdk/dist/
+packages/sdk/node_modules/
+
 # Environment
 .env
 .env.*

@@ -1,0 +1,23 @@
+{
+  "name": "@countersig/protocol-sdk",
+  "version": "1.0.0-alpha.1",
+  "description": "TypeScript SDK for the Countersig Network. On-chain agent identity, reputation, and A2A challenge-response authentication.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ethers": "^6.0.0",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  },
+  "license": "MIT"
+}
