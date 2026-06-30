@@ -593,7 +593,7 @@ docker compose -f docker-compose.selfhost.yml up -d counteraudit
 
   <section id="ai-frameworks">
     <h2>AI Framework Integration</h2>
-    <p class="section-lead">The pattern is the same in every framework: generate a DID at startup, include it in every audit call, verify peer agents before trusting their output. Below are working examples for the most common frameworks.</p>
+    <p class="section-lead">The pattern is the same in every framework: generate a DID at startup, include it in every audit call, verify peer agents before trusting their output. The Node.js examples use the published <code>@countersig/protocol-sdk</code>. The Python examples show the planned interface — a Python SDK is in development.</p>
 
     <div class="fw-tabs">
       <div class="fw-tab active" onclick="switchFw('langchain')">LangChain (Python)</div>

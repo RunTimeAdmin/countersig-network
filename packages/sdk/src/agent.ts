@@ -48,6 +48,10 @@ export class CountersigAgent {
     return { agent, privateKey: '0x' + bytesToHex(seed) };
   }
 
+  get agentAddress(): string {
+    return this._agentAddress;
+  }
+
   get did(): string {
     return formatDid(this._agentAddress, this._chainId);
   }
