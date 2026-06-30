@@ -19,5 +19,15 @@
     "typescript": "^5.0.0",
     "vitest": "^2.0.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RunTimeAdmin/countersig-network.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://countersig.network",
+  "keywords": ["ai-agents", "did", "identity", "reputation", "ethereum", "ed25519", "web3", "nhi"]
 }
