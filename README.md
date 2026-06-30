@@ -4,6 +4,16 @@
 
 As AI agents become independent economic actors, the absence of verifiable Non-Human Identity (NHI) is a structural gap. Agents can impersonate peers, game reputation systems, and act without accountability. Countersig solves this by anchoring W3C Decentralized Identifiers on-chain, enforcing Ed25519 PKI authentication off-chain, and securing agent reputation through a staked cryptoeconomic model.
 
+## Documentation
+
+| Guide | Audience |
+|---|---|
+| [Ecosystem Overview](docs/ecosystem.md) | Everyone — start here to understand the full picture |
+| [Quickstart](docs/quickstart.md) | Developers — register your first agent in 10 minutes |
+| [CounterAudit Integration](docs/counteraudit-integration.md) | Enterprise — embed agent identity in your audit trail |
+| [AI Framework Integration](docs/ai-frameworks.md) | Developers — LangChain, AutoGen, CrewAI, Node.js |
+| [Reputation Model](docs/reputation-model.md) | Everyone — how the 6-factor score works and grows |
+
 ---
 
 ## Protocol Architecture
@@ -343,6 +353,46 @@ FOUNDRY_PROFILE=ci forge test
 | `ORACLE_ROLE` | Oracle consensus contract | Write reputation scores |
 | `SLASHING_COMMITTEE_ROLE` | 3-of-5 multisig | Initiate slash proposals |
 | Operator | Agent registrant | Register, suspend, reinstate, rotate key |
+
+---
+
+## Ecosystem & Integrations
+
+Countersig is designed as an open identity layer. Any system that needs to know *which* AI agent did *what* can integrate by querying the contracts or consuming CounterAudit enriched packets.
+
+### CounterAudit
+
+[CounterAudit](https://counteraudit.io) is the first integration partner. When an ingest call includes `agent_did`, CounterAudit queries the Countersig contracts at seal time and embeds the agent's identity and reputation score inside the AES-GCM seal. The data is covered by RFC 3161 timestamp — forensically proving what the agent's reputation was at the moment of each action.
+
+```typescript
+// Every action your agent takes gets sealed with identity + reputation
+await fetch('https://api.counteraudit.io/v1/audit/ingest', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${CA_API_KEY}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    connector_id: 'my-agent',
+    agent_did: 'did:countersig:11155111:0x...',
+    raw_event: { action: 'tool_call', tool: 'web_search', query: '...' },
+  }),
+});
+
+// The sealed packet contains:
+// agent_reputation_score: 47
+// agent_identity_status: "Active"
+// agent_identity_verified: true
+// agent_enriched_at: "2026-06-30T16:33:39Z"
+```
+
+See the [CounterAudit Integration Guide](docs/counteraudit-integration.md) for full setup instructions.
+
+### On-chain consumers
+
+Any smart contract can gate operations on an agent's reputation:
+
+```solidity
+ICountersigReputation rep = ICountersigReputation(REPUTATION_ADDRESS);
+require(rep.meetsThreshold(didHash, 60), "insufficient reputation");
+```
 
 ---
 
