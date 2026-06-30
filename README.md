@@ -1,62 +1,300 @@
-# Countersig Network — Protocol Contracts
+# Countersig Network
 
-Decentralized identity and trust infrastructure for autonomous AI agents.
+**On-chain identity, reputation, and staking for autonomous AI agents.**
 
-## Overview
+As AI agents become independent economic actors, the absence of verifiable Non-Human Identity (NHI) is a structural gap. Agents can impersonate peers, game reputation systems, and act without accountability. Countersig solves this by anchoring W3C Decentralized Identifiers on-chain, enforcing Ed25519 PKI authentication off-chain, and securing agent reputation through a staked cryptoeconomic model.
 
-Three EVM smart contracts form the protocol core:
+---
 
-| Contract | Purpose |
+## Protocol Architecture
+
+```mermaid
+graph TB
+    subgraph offchain["Off-Chain Verification Layer"]
+        A["Agent Node A\nEd25519 Keys"]
+        B["Agent Node B\nEd25519 Keys"]
+        U["User / DApp"]
+    end
+
+    subgraph did_layer["Decentralized Identity Layer"]
+        R["DID Resolver\ndid:countersig method"]
+    end
+
+    subgraph onchain["On-Chain State Layer (EVM)"]
+        ID["CountersigIdentity\nDID anchoring · pubkey storage\nAgentStatus state machine"]
+        REP["CountersigReputation\n6-factor score store\noracle-written · slash-zeroed"]
+        ST["CountersigStaking\nCSIG bonds\ncommittee slash · challenge period"]
+    end
+
+    subgraph oracle["Oracle Network (Phase 2)"]
+        OC["Reputation Oracle\n24h epoch aggregation"]
+    end
+
+    A <-->|"PKI challenge-response"| B
+    B -->|"resolve DID"| R
+    R -->|"reads pubkey + status"| ID
+    U -->|"query score"| REP
+    OC -->|"updateReputation()"| REP
+    ST -->|"updateStatus(Slashed)"| ID
+    ST -->|"zeroReputation()"| REP
+```
+
+---
+
+## Contracts
+
+| Contract | Role |
 |---|---|
-| `CountersigIdentity` | Anchors agent DIDs on-chain. Stores Ed25519 public keys. Controls AgentStatus state machine. |
-| `CountersigReputation` | Stores oracle-computed 6-factor reputation scores (0-100). |
-| `CountersigStaking` | Manages $CSIG bonds. Enforces the multisig-committee slashing model. |
+| [`CountersigIdentity`](src/CountersigIdentity.sol) | DID anchoring. Stores operator address, Ed25519 public key, and `AgentStatus`. Computes `didHash` on-chain. |
+| [`CountersigReputation`](src/CountersigReputation.sol) | Oracle-written reputation store. Exposes `getTotalScore()` and `meetsThreshold()` for on-chain consumers. |
+| [`CountersigStaking`](src/CountersigStaking.sol) | `$CSIG` bond management. Multisig committee initiates slashes with a 7-day challenge window. Permissionless execution after timelock. |
 
-Each contract uses UUPS upgradeable proxies (OpenZeppelin v5) controlled by a governance timelock.
+All three use UUPS upgradeable proxies (OpenZeppelin v5), controlled by a governance timelock on mainnet.
+
+---
 
 ## DID Method
 
-`did:countersig:<chainId>:<agentAddress>`
+**Format:** `did:countersig:<chainId>:<agentAddress>`
 
-The `didHash` is computed on-chain at registration:
+**Example:** `did:countersig:1:0x1234...abcd`
+
+The `didHash` index key is derived trustlessly on-chain at registration:
+
+```solidity
+bytes32 didHash = keccak256(
+    abi.encodePacked("did:countersig:", block.chainid, ":", agentAddress)
+);
 ```
-keccak256(abi.encodePacked("did:countersig:", block.chainid, ":", agentAddress))
+
+Any party can reproduce the hash without querying contract state. The on-chain derivation prevents off-chain forgery.
+
+### DID Document (resolved off-chain)
+
+```json
+{
+  "@context": [
+    "https://www.w3.org/ns/did/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "id": "did:countersig:1:0x1234abcd",
+  "controller": "did:pkh:eip155:1:0xOperatorAddress",
+  "verificationMethod": [{
+    "id": "did:countersig:1:0x1234abcd#key-1",
+    "type": "Ed25519VerificationKey2020",
+    "controller": "did:countersig:1:0x1234abcd",
+    "publicKeyMultibase": "z6MkhaXgBZDvotDkL5257faiztiCEsJ"
+  }],
+  "authentication": ["did:countersig:1:0x1234abcd#key-1"],
+  "assertionMethod": ["did:countersig:1:0x1234abcd#key-1"]
+}
 ```
 
-## Reputation Factors
+---
 
-| Factor | Max | Signal |
+## Agent Status State Machine
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Active : registerAgent()
+
+    Active --> Suspended : operator.updateStatus()\nor StakingCore.initiateSlash()
+    Suspended --> Active : operator.updateStatus()\nor StakingCore.disputeSlash()
+
+    Active --> Slashed : StakingCore.executeSlash()
+    Suspended --> Slashed : StakingCore.executeSlash()
+
+    Slashed --> [*] : terminal — no further transitions
+```
+
+Key invariants:
+- Only `STAKING_CORE_ROLE` can set `Slashed`
+- `Slashed` is terminal — no key rotation, no status change
+- Suspended agents may rotate their Ed25519 key (key-compromise recovery path)
+
+---
+
+## Reputation System
+
+Scores are computed off-chain by the oracle network and written to `CountersigReputation`. The contract stores and serves; it does not compute.
+
+| Factor | Max | Source | Formula |
+|---|---|---|---|
+| Fee Activity | 30 | On-chain transaction volume | `min(30, floor(totalFeesUSD / 100))` |
+| Success Rate | 25 | Cryptographic task attestations | `floor(successRate * 25)` |
+| Age | 20 | Registration timestamp | `min(20, floor(log₂(days+1) × 4))` |
+| External Trust | 15 | SAID Protocol / Gitcoin Passport | `floor(externalScore / 100 × 15)` |
+| Community | 5 | Unresolved flags | `max(0, 5 − flags × 2)` |
+| Propagation | 5 | Trust graph network effects | oracle-computed |
+| **Total** | **100** | | |
+
+The age formula reaches 20 around day 31 (logarithmic). A new agent cannot exceed 50 without sustained economic activity over time.
+
+---
+
+## Slashing Model
+
+**Testnet:** 3-of-5 multisig `SLASHING_COMMITTEE`. **Mainnet path:** UMA OptimisticOracleV3 or Kleros (isolated in the `initiateSlash` / `disputeSlash` interface, replaceable without storage migration).
+
+### Slash Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant V as Victim
+    participant CM as Committee (3-of-5)
+    participant ST as CountersigStaking
+    participant ID as CountersigIdentity
+    participant REP as CountersigReputation
+
+    V->>CM: report agent + evidence package
+    CM->>ST: initiateSlash(didHash, victim, evidenceHash)
+    ST->>ID: updateStatus(didHash, Suspended)
+    Note over ST: 7-day challenge period begins
+
+    alt Operator disputes within window
+        Op->>ST: disputeSlash(didHash)
+        ST->>ID: updateStatus(didHash, Active)
+        Note over ST: Proposal cancelled — re-initiation possible
+    else Challenge period elapses undisputed
+        Anyone->>ST: executeSlash(didHash)
+        ST->>ID: updateStatus(didHash, Slashed)
+        ST->>REP: zeroReputation(didHash)
+        ST-->>0xdead: 50% burned
+        ST-->>V: 25% to victim
+        ST-->>CM: 25% to reporter
+    end
+```
+
+### Slash Distribution
+
+| Recipient | Share | Mechanism |
 |---|---|---|
-| Fee Activity | 30 | On-chain economic activity |
-| Success Rate | 25 | Cryptographic task attestations |
-| Age | 20 | `min(20, floor(log2(days+1) * 4))` |
-| External Trust | 15 | SAID Protocol / Gitcoin Passport |
-| Community | 5 | Flag-free standing |
-| Propagation | 5 | Network trust graph |
+| `address(0xdead)` | 50% | Deflationary burn |
+| Victim | 25% | Recourse for the harmed party |
+| Committee reporter | 25% | Incentivizes accurate reporting |
 
-## Slashing Model (Testnet)
+---
 
-- 3-of-5 multisig `SLASHING_COMMITTEE`
-- 7-day challenge period (operator can dispute)
-- On execution: 50% burned, 25% victim, 25% reporter
-- Mainnet path: replace committee with UMA OptimisticOracleV3 or Kleros
+## Protocol Flows
+
+### Agent Registration
+
+```mermaid
+sequenceDiagram
+    participant Op as Operator
+    participant ST as CountersigStaking
+    participant ID as CountersigIdentity
+
+    Note over Op: Generate Ed25519 keypair off-chain
+    Op->>ST: depositStake(didHash, minimumCSIG)
+    ST-->>Op: stake recorded
+    Op->>ID: registerAgent(agentAddress, ed25519PubKey)
+    ID->>ID: didHash = keccak256("did:countersig:" + chainId + ":" + agentAddress)
+    ID-->>Op: AgentRegistered(didHash, operator, agentAddress, pubKey)
+    Note over ID: did:countersig:1:0xAgent now globally resolvable
+```
+
+### Agent-to-Agent (A2A) Trust Verification
+
+```mermaid
+sequenceDiagram
+    participant A as Agent A
+    participant B as Agent B
+    participant ID as CountersigIdentity
+    participant REP as CountersigReputation
+
+    A->>B: request action
+    B->>A: challenge payload\n"COUNTERSIG-VERIFY:{DID}:{nonce}:{timestamp}"
+    A->>A: sign payload with Ed25519 private key
+    A->>B: { did, signature }
+    B->>ID: getIdentity(didHash)
+    ID-->>B: { ed25519PubKey, status: Active }
+    B->>B: verify Ed25519 signature against pubKey
+    B->>REP: meetsThreshold(didHash, 60)
+    REP-->>B: true / false
+    alt threshold met and signature valid
+        B-->>A: action permitted
+    else
+        B-->>A: rejected
+    end
+```
+
+### Reputation Update Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant UC as User / Counterparty
+    participant OR as Oracle Network
+    participant REP as CountersigReputation
+
+    UC->>OR: submit cryptographic attestation of task success
+    Note over OR: 24-hour epoch aggregation across all attestations
+    OR->>OR: compute 6-factor scores for each agent
+    OR->>REP: updateReputation(didHash, ReputationData)
+    REP->>REP: validate per-factor caps
+    REP-->>OR: ReputationUpdated(didHash, totalScore)
+    Note over REP: Score available on-chain for A2A threshold checks
+```
+
+---
+
+## Key Rotation
+
+If an Ed25519 private key is compromised:
+
+1. Operator calls `updateStatus(didHash, Suspended)` immediately — invalidates the DID for authentication within one block.
+2. Operator generates a new Ed25519 keypair off-chain.
+3. Operator calls `rotatePublicKey(didHash, newEd25519PubKey)`.
+4. Operator reinstates: `updateStatus(didHash, Active)`.
+
+Slashed agents cannot rotate. The identity is permanently terminated.
+
+---
 
 ## Setup
 
 Requires [Foundry](https://getfoundry.sh).
 
 ```bash
+git clone https://github.com/RunTimeAdmin/countersig-network
+cd countersig-network
 forge install
 forge build
 forge test
 ```
 
+Running the fuzz suite at higher intensity:
+
+```bash
+FOUNDRY_PROFILE=ci forge test
+```
+
+---
+
+## Access Control Summary
+
+| Role | Holder (Testnet) | Permissions |
+|---|---|---|
+| `DEFAULT_ADMIN_ROLE` | Governance timelock | Grant/revoke all roles |
+| `UPGRADER_ROLE` | Governance timelock | Authorize UUPS upgrades |
+| `STAKING_CORE_ROLE` | `CountersigStaking` | Suspend / slash agents, zero reputation |
+| `ORACLE_ROLE` | Oracle consensus contract | Write reputation scores |
+| `SLASHING_COMMITTEE_ROLE` | 3-of-5 multisig | Initiate slash proposals |
+| Operator | Agent registrant | Register, suspend, reinstate, rotate key |
+
+---
+
 ## Roadmap
 
-- Q3 2026: Sepolia testnet deployment + SDK v1.0
-- Q4 2026: Decentralized oracle network + SAID/Gitcoin integration
-- Q1 2027: Mainnet + $CSIG TGE
-- Q2 2027: Cross-chain (Solana + Base via LayerZero)
+| Phase | Timeline | Deliverables |
+|---|---|---|
+| Core Protocol | Q3 2026 | Sepolia testnet · `@countersig/protocol-sdk` v1.0 |
+| Oracle Network | Q4 2026 | Decentralized reputation aggregation · SAID + Gitcoin integration |
+| Mainnet | Q1 2027 | Tier-1 security audit · mainnet deployment · `$CSIG` TGE |
+| Cross-Chain | Q2 2027 | Solana + Base state mirroring via LayerZero |
+
+---
 
 ## License
 
