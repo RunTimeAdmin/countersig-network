@@ -116,6 +116,43 @@
     .sp-bool-t { color: var(--green); }
     .sp-bool-f { color: var(--red); }
     .sp-lock { color: var(--muted); font-size: 11px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+    /* Guide content shared styles */
+    h4 { font-size: 14px; font-weight: 600; color: var(--text); margin: 28px 0 10px; }
+    .guide-intro { color: var(--muted); font-size: 14px; margin-bottom: 28px; max-width: 640px; }
+    .lang-label { font-family: var(--font-mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .guide-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+    .guide-table th { text-align: left; padding: 10px 14px; color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); background: rgba(17,19,24,0.6); }
+    .guide-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+    .guide-table tr:last-child td { border-bottom: none; }
+    .guide-table td:first-child { font-family: var(--font-mono); font-size: 12px; color: var(--accent2); white-space: nowrap; }
+    .guide-table td:nth-child(2) { color: var(--muted); }
+    .callout { background: rgba(79,142,247,0.06); border: 1px solid rgba(79,142,247,0.2); border-radius: var(--radius); padding: 14px 18px; font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .callout strong { color: var(--accent); }
+    .env-block { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; font-family: var(--font-mono); font-size: 13px; line-height: 2; margin-bottom: 16px; }
+    .env-key { color: var(--accent2); } .env-val { color: #a5d6ff; } .env-cm { color: #8b949e; }
+    .lang-tabs { display: flex; gap: 0; margin-bottom: -1px; }
+    .lang-tab { font-family: var(--font-mono); font-size: 11px; padding: 5px 14px; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; background: var(--surface); color: var(--muted); cursor: pointer; user-select: none; }
+    .lang-tab.active { background: var(--code-bg); color: var(--text); border-color: var(--border); }
+    .tab-pane { display: none; } .tab-pane.active { display: block; }
+    /* Quickstart steps with code */
+    .qs-step { padding: 24px 0; border-bottom: 1px solid var(--border); }
+    .qs-step:last-child { border-bottom: none; }
+    .qs-header { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 10px; }
+    .qs-num { font-family: var(--font-mono); font-size: 12px; color: var(--accent); background: rgba(79,142,247,0.1); border: 1px solid rgba(79,142,247,0.25); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .qs-header h3 { font-size: 15px; font-weight: 600; margin: 4px 0 0; }
+    .qs-body { padding-left: 44px; }
+    .qs-body p { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+    /* Framework tabs */
+    .fw-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .fw-tab { font-size: 12px; font-family: var(--font-mono); padding: 4px 12px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); color: var(--muted); cursor: pointer; transition: all 0.15s; }
+    .fw-tab.active, .fw-tab:hover { color: var(--accent); border-color: rgba(79,142,247,0.4); background: rgba(79,142,247,0.07); }
+    /* Reputation expanded */
+    .rep-formula { font-family: var(--font-mono); font-size: 12px; color: var(--accent2); background: rgba(124,90,247,0.08); border: 1px solid rgba(124,90,247,0.2); border-radius: 4px; padding: 3px 8px; display: inline-block; margin-top: 4px; }
+    .rep-factor-detail { margin-top: 8px; }
+    .rep-factor-detail p { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .ramp-row { display: flex; justify-content: space-between; font-size: 12px; font-family: var(--font-mono); padding: 4px 0; border-bottom: 1px solid rgba(30,34,48,0.5); }
+    .ramp-row:last-child { border-bottom: none; }
+    .ramp-day { color: var(--muted); } .ramp-pts { color: var(--accent); }
     footer { border-top: 1px solid var(--border); padding: 32px 0; text-align: center; color: var(--muted); font-size: 13px; }
     footer a { color: var(--muted); }
     footer a:hover { color: var(--text); }
@@ -128,8 +165,9 @@
     <span class="logo">countersig<span>.</span>network</span>
     <ul>
       <li><a href="#how-it-works">How It Works</a></li>
-      <li><a href="#ecosystem">Ecosystem</a></li>
-      <li><a href="#integrate">Integrate</a></li>
+      <li><a href="#quickstart">Quickstart</a></li>
+      <li><a href="#counteraudit">CounterAudit</a></li>
+      <li><a href="#ai-frameworks">AI Frameworks</a></li>
       <li><a href="#reputation">Reputation</a></li>
       <li><a href="#contracts">Testnet</a></li>
       <li><a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a></li>
@@ -275,25 +313,25 @@
         <div class="ic-tag">TypeScript SDK</div>
         <h3>Register and authenticate agents</h3>
         <p>Full lifecycle management: key generation, on-chain registration, challenge signing, and reputation queries. Works with any Node.js application.</p>
-        <a href="https://github.com/RunTimeAdmin/countersig-network/blob/main/docs/quickstart.md" target="_blank" rel="noopener">Quickstart guide →</a>
+        <a href="#quickstart">Quickstart guide →</a>
       </div>
       <div class="integrate-card">
         <div class="ic-tag">CounterAudit</div>
         <h3>Embed identity in your audit trail</h3>
         <p>Add <code>agent_did</code> to your existing CounterAudit ingest calls. Identity and reputation are sealed into every packet automatically. No other changes needed.</p>
-        <a href="https://github.com/RunTimeAdmin/countersig-network/blob/main/docs/counteraudit-integration.md" target="_blank" rel="noopener">Integration guide →</a>
+        <a href="#counteraudit">Integration guide →</a>
       </div>
       <div class="integrate-card">
         <div class="ic-tag">AI Frameworks</div>
         <h3>LangChain, AutoGen, CrewAI</h3>
         <p>Thin wrappers that add a DID and audit call to any agent action. The pattern is the same in every framework: generate DID at startup, include it in every audit call.</p>
-        <a href="https://github.com/RunTimeAdmin/countersig-network/blob/main/docs/ai-frameworks.md" target="_blank" rel="noopener">Framework examples →</a>
+        <a href="#ai-frameworks">Framework examples →</a>
       </div>
       <div class="integrate-card">
         <div class="ic-tag">On-Chain</div>
         <h3>Gate smart contracts on reputation</h3>
         <p>One view call. Any Solidity contract can require a minimum reputation score before accepting an agent's action or transaction — no oracle dependency at runtime.</p>
-        <a href="https://github.com/RunTimeAdmin/countersig-network/blob/main/README.md#ecosystem--integrations" target="_blank" rel="noopener">See example →</a>
+        <a href="#reputation">See example →</a>
       </div>
     </div>
     <pre><code><span class="cm">// npm install @countersig/protocol-sdk</span>
@@ -314,6 +352,356 @@ console.log(agent.did); <span class="cm">// did:countersig:11155111:0x...</span>
 
 <span class="cm">// 4. Verify a peer agent before trusting its output</span>
 <span class="kw">const</span> trusted = <span class="kw">await</span> verifier.<span class="fn">meetsThreshold</span>(peerDid, <span class="num">60</span>);</code></pre>
+  </section>
+
+  <section id="quickstart">
+    <h2>Quickstart</h2>
+    <p class="section-lead">From zero to a registered, reputation-tracked AI agent on Sepolia in about 10 minutes. You need Node.js 18+, a wallet with Sepolia ETH, and an Alchemy or Infura RPC URL.</p>
+
+    <div class="qs-step">
+      <div class="qs-header"><div class="qs-num">1</div><h3>Install the SDK</h3></div>
+      <div class="qs-body">
+        <pre><code>npm install @countersig/protocol-sdk ethers</code></pre>
+      </div>
+    </div>
+
+    <div class="qs-step">
+      <div class="qs-header"><div class="qs-num">2</div><h3>Get testnet $CSIG</h3></div>
+      <div class="qs-body">
+        <p>Call the public faucet on CSIGToken once per wallet.</p>
+        <pre><code><span class="kw">import</span> { ethers } <span class="kw">from</span> <span class="str">'ethers'</span>;
+
+<span class="kw">const</span> provider = <span class="kw">new</span> ethers.<span class="fn">JsonRpcProvider</span>(process.env.RPC_URL);
+<span class="kw">const</span> signer   = <span class="kw">new</span> ethers.<span class="fn">Wallet</span>(process.env.OPERATOR_PRIVATE_KEY, provider);
+<span class="kw">const</span> csig     = <span class="kw">new</span> ethers.<span class="fn">Contract</span>(
+  <span class="str">'0x6d5E311e821c3e279dBe9833F8e33828f7716FA8'</span>,
+  [<span class="str">'function faucet() external'</span>],
+  signer
+);
+<span class="kw">await</span> csig.<span class="fn">faucet</span>();</code></pre>
+      </div>
+    </div>
+
+    <div class="qs-step">
+      <div class="qs-header"><div class="qs-num">3</div><h3>Generate an Ed25519 keypair</h3></div>
+      <div class="qs-body">
+        <p>Your agent's cryptographic identity. The public key is stored on-chain. The private key never leaves your environment — store it securely, it cannot be recovered.</p>
+        <pre><code><span class="kw">import</span> { <span class="fn">CountersigAgent</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
+
+<span class="kw">const</span> { agent, privateKey } = <span class="fn">CountersigAgent</span>.<span class="fn">generate</span>({
+  agentAddress: signer.address,
+  chainId:      <span class="num">11155111</span>,
+});
+
+console.log(agent.did);
+<span class="cm">// → did:countersig:11155111:0xYourAddress</span>
+
+<span class="cm">// Store privateKey (0x hex) in your secrets manager — never commit it.</span></code></pre>
+      </div>
+    </div>
+
+    <div class="qs-step">
+      <div class="qs-header"><div class="qs-num">4</div><h3>Approve and register on-chain</h3></div>
+      <div class="qs-body">
+        <p>Two transactions: approve the staking contract to spend CSIG, then register. The contract computes your <code>didHash</code> from your address and chain ID and emits <code>AgentRegistered</code>.</p>
+        <pre><code><span class="kw">import</span> { <span class="fn">registerAgent</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
+
+<span class="kw">const</span> IDENTITY_ADDRESS = <span class="str">'0xD738A4cBe525d214f86059A8328786f072D6fbe1'</span>;
+<span class="kw">const</span> STAKING_ADDRESS  = <span class="str">'0x60347640d46B55E7dafFA8F385bc55eE2D77ee85'</span>;
+<span class="kw">const</span> minStake = ethers.<span class="fn">parseEther</span>(<span class="str">'1000'</span>);
+
+<span class="kw">await</span> csig.<span class="fn">approve</span>(STAKING_ADDRESS, minStake);
+
+<span class="kw">const</span> { didHash, txHash } = <span class="kw">await</span> <span class="fn">registerAgent</span>(
+  signer, signer.address, agent.publicKeyBytes32,
+  IDENTITY_ADDRESS, STAKING_ADDRESS, minStake
+);
+console.log(<span class="str">'Registered:'</span>, `https://sepolia.etherscan.io/tx/${txHash}`);</code></pre>
+      </div>
+    </div>
+
+    <div class="qs-step">
+      <div class="qs-header"><div class="qs-num">5</div><h3>Verify registration and check score</h3></div>
+      <div class="qs-body">
+        <pre><code><span class="kw">import</span> { <span class="fn">CountersigVerifier</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
+
+<span class="kw">const</span> REPUTATION_ADDRESS = <span class="str">'0x0613C561C5003D7948Ea09dE2C1895965A5c3F27'</span>;
+
+<span class="kw">const</span> verifier = <span class="kw">new</span> <span class="fn">CountersigVerifier</span>({
+  rpcUrl:    process.env.RPC_URL,
+  addresses: { identity: IDENTITY_ADDRESS, reputation: REPUTATION_ADDRESS, staking: STAKING_ADDRESS },
+  chainId:   <span class="num">11155111</span>,
+});
+
+<span class="kw">const</span> identity = <span class="kw">await</span> verifier.<span class="fn">getIdentity</span>(agent.did);
+console.log(identity.status);   <span class="cm">// → Active</span>
+
+<span class="kw">const</span> score = <span class="kw">await</span> verifier.<span class="fn">getTotalScore</span>(agent.did);
+console.log(score);             <span class="cm">// → 5 (community baseline — grows with activity)</span></code></pre>
+      </div>
+    </div>
+
+    <div class="qs-step">
+      <div class="qs-header"><div class="qs-num">6</div><h3>Sign a challenge (A2A authentication)</h3></div>
+      <div class="qs-body">
+        <p>When a peer agent asks your agent to prove who it is, sign the challenge with your Ed25519 key. The verifier resolves your public key directly from the contract — no third party involved.</p>
+        <pre><code><span class="kw">const</span> myAgent = <span class="kw">new</span> <span class="fn">CountersigAgent</span>({
+  privateKey:   process.env.AGENT_ED25519_SEED,
+  agentAddress: signer.address,
+  chainId:      <span class="num">11155111</span>,
+});
+
+<span class="cm">// Peer issues a challenge → your agent signs it</span>
+<span class="kw">const</span> signature = myAgent.<span class="fn">signChallenge</span>(challenge.payload);
+
+<span class="cm">// Peer verifies: signature + on-chain pubkey + reputation threshold</span>
+<span class="kw">const</span> valid   = <span class="kw">await</span> verifier.<span class="fn">verifySignature</span>(myAgent.did, challenge.payload, signature);
+<span class="kw">const</span> trusted = <span class="kw">await</span> verifier.<span class="fn">meetsThreshold</span>(myAgent.did, <span class="num">60</span>); <span class="cm">// view call, no gas</span></code></pre>
+      </div>
+    </div>
+
+    <div class="qs-step">
+      <div class="qs-header"><div class="qs-num">7</div><h3>Audit every action with your DID</h3></div>
+      <div class="qs-body">
+        <p>Pass <code>agent_did</code> in each CounterAudit ingest call. Your on-chain identity and live reputation score are sealed into every packet — frozen at the moment of the action.</p>
+        <pre><code><span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.counteraudit.io/v1/audit/ingest'</span>, {
+  method: <span class="str">'POST'</span>,
+  headers: {
+    <span class="str">'Authorization'</span>: `Bearer ${CA_API_KEY}`,
+    <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>,
+  },
+  body: <span class="fn">JSON.stringify</span>({
+    connector_id: <span class="str">'my-agent'</span>,
+    agent_did:    myAgent.did,
+    raw_event:    { action: <span class="str">'tool_call'</span>, tool: <span class="str">'web_search'</span>, query: <span class="str">'...'</span> },
+  }),
+});</code></pre>
+      </div>
+    </div>
+
+    <div class="qs-step">
+      <div class="qs-header"><div class="qs-num">8</div><h3>Verify a sealed packet</h3></div>
+      <div class="qs-body">
+        <p>Retrieve any packet by ID. The decrypted body contains all Countersig fields — the agent's identity and reputation at the exact moment of the action, covered by RFC&nbsp;3161 timestamp.</p>
+        <pre><code><span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(`https://api.counteraudit.io/v1/audit/verify/${packetId}`, {
+  headers: { <span class="str">'Authorization'</span>: `Bearer ${CA_API_KEY}` }
+});
+<span class="kw">const</span> { packet } = <span class="kw">await</span> res.<span class="fn">json</span>();
+
+console.log(packet.agent_reputation_score);  <span class="cm">// e.g. 47</span>
+console.log(packet.agent_identity_status);   <span class="cm">// "Active"</span>
+console.log(packet.agent_identity_verified); <span class="cm">// true</span>
+console.log(packet.agent_enriched_at);       <span class="cm">// "2026-06-30T16:33:39Z"</span></code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="counteraudit">
+    <h2>CounterAudit Integration</h2>
+    <p class="section-lead">CounterAudit is a tamper-evident AI audit trail. Adding <code style="font-family:var(--font-mono);font-size:13px;background:var(--code-bg);border:1px solid var(--border);padding:2px 6px;border-radius:4px;color:var(--accent2)">agent_did</code> to ingest calls enriches every sealed packet with the agent's live on-chain identity and reputation at seal time — inside the AES-GCM seal, covered by the RFC&nbsp;3161 timestamp.</p>
+
+    <h4>Self-Hosted Setup</h4>
+    <p class="guide-intro">Add these variables to your CounterAudit <code style="font-family:var(--font-mono);font-size:12px;color:var(--accent2)">.env</code>, then rebuild the container. If the three required vars are absent the service silently no-ops — no existing ingest paths are affected.</p>
+    <div class="env-block">
+      <span class="env-cm"># Countersig identity enrichment</span><br />
+      <span class="env-key">COUNTERSIG_RPC_URL</span>=<span class="env-val">https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY</span><br />
+      <span class="env-key">COUNTERSIG_IDENTITY_ADDRESS</span>=<span class="env-val">0xD738A4cBe525d214f86059A8328786f072D6fbe1</span><br />
+      <span class="env-key">COUNTERSIG_REPUTATION_ADDRESS</span>=<span class="env-val">0x0613C561C5003D7948Ea09dE2C1895965A5c3F27</span><br />
+      <span class="env-key">COUNTERSIG_CHAIN_ID</span>=<span class="env-val">11155111</span><br />
+      <span class="env-key">COUNTERSIG_ENRICH_TIMEOUT_MS</span>=<span class="env-val">5000</span> <span class="env-cm"># optional, default 5000</span>
+    </div>
+    <pre><code>docker compose -f docker-compose.selfhost.yml build --no-cache counteraudit
+docker compose -f docker-compose.selfhost.yml up -d counteraudit
+<span class="cm"># On startup: [counteraudit] countersig enrichment enabled</span></code></pre>
+
+    <h4>Ingest with agent_did</h4>
+    <div class="lang-tabs" id="ca-tabs">
+      <div class="lang-tab active" onclick="switchTab('ca','curl')">curl</div>
+      <div class="lang-tab" onclick="switchTab('ca','ts')">TypeScript</div>
+      <div class="lang-tab" onclick="switchTab('ca','py')">Python</div>
+    </div>
+    <div id="ca-curl" class="tab-pane active">
+<pre><code>curl -X POST https://api.counteraudit.io/v1/audit/ingest \
+  -H <span class="str">"Authorization: Bearer $CA_API_KEY"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{
+    "connector_id": "my-agent",
+    "agent_did": "did:countersig:11155111:0xYourAgentAddress",
+    "raw_event": {
+      "action": "tool_call",
+      "tool": "web_search",
+      "query": "carbon capture research"
+    }
+  }'</span></code></pre>
+    </div>
+    <div id="ca-ts" class="tab-pane">
+<pre><code><span class="kw">async function</span> <span class="fn">auditAction</span>(agentDid: string, event: <span class="fn">Record</span>&lt;string, unknown&gt;) {
+  <span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.counteraudit.io/v1/audit/ingest'</span>, {
+    method: <span class="str">'POST'</span>,
+    headers: {
+      <span class="str">'Authorization'</span>: `Bearer ${process.env.CA_API_KEY}`,
+      <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>,
+    },
+    body: <span class="fn">JSON.stringify</span>({ connector_id: <span class="str">'my-agent'</span>, agent_did: agentDid, raw_event: event }),
+  });
+  <span class="kw">return</span> res.<span class="fn">json</span>(); <span class="cm">// → { packet_id, entry_hash, created_at }</span>
+}</code></pre>
+    </div>
+    <div id="ca-py" class="tab-pane">
+<pre><code><span class="kw">import</span> httpx, os
+
+<span class="kw">def</span> <span class="fn">audit_action</span>(agent_did: str, event: dict) -> dict:
+    resp = httpx.<span class="fn">post</span>(
+        <span class="str">"https://api.counteraudit.io/v1/audit/ingest"</span>,
+        headers={
+            <span class="str">"Authorization"</span>: f<span class="str">"Bearer {os.environ['CA_API_KEY']}"</span>,
+            <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span>,
+        },
+        json={<span class="str">"connector_id"</span>: <span class="str">"my-agent"</span>, <span class="str">"agent_did"</span>: agent_did, <span class="str">"raw_event"</span>: event},
+        timeout=<span class="num">10</span>,
+    )
+    resp.<span class="fn">raise_for_status</span>()
+    <span class="kw">return</span> resp.<span class="fn">json</span>()</code></pre>
+    </div>
+
+    <h4>Enriched Fields in Every Sealed Packet</h4>
+    <table class="guide-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>agent_did</td><td>string</td><td>The W3C DID: <code style="font-family:var(--font-mono);font-size:11px;color:var(--accent2)">did:countersig:&lt;chainId&gt;:&lt;address&gt;</code></td></tr>
+        <tr><td>agent_did_hash</td><td>hex</td><td>On-chain index key — any party can verify it matches the DID independently</td></tr>
+        <tr><td>agent_chain_id</td><td>number</td><td>EVM chain ID (e.g. 11155111 for Sepolia)</td></tr>
+        <tr><td>agent_reputation_score</td><td>0–100</td><td>Total score <strong>at the moment of ingest</strong> — frozen in the seal, not retroactively updated</td></tr>
+        <tr><td>agent_identity_status</td><td>string</td><td><code style="font-family:var(--font-mono);font-size:11px;color:var(--green)">Active</code>, <code style="font-family:var(--font-mono);font-size:11px;color:var(--accent)">Suspended</code>, or <code style="font-family:var(--font-mono);font-size:11px;color:var(--red)">Slashed</code></td></tr>
+        <tr><td>agent_identity_verified</td><td>boolean</td><td>true if registered and Active; false on any failure</td></tr>
+        <tr><td>agent_enriched_at</td><td>ISO 8601</td><td>When the enrichment query ran — covered by RFC 3161 timestamp</td></tr>
+        <tr><td>agent_enrichment_error</td><td>string</td><td>Present on failure: <code style="font-family:var(--font-mono);font-size:11px;color:var(--accent2)">invalid_did_format</code> · <code style="font-family:var(--font-mono);font-size:11px;color:var(--accent2)">not_registered</code> · <code style="font-family:var(--font-mono);font-size:11px;color:var(--accent2)">rpc_timeout</code> · <code style="font-family:var(--font-mono);font-size:11px;color:var(--accent2)">rpc_error</code></td></tr>
+      </tbody>
+    </table>
+    <div class="callout">Enrichment is <strong>never a blocking dependency</strong>. If the RPC times out or the DID is unregistered, <code style="font-family:var(--font-mono);font-size:12px">agent_identity_verified</code> is set to <code style="font-family:var(--font-mono);font-size:12px;color:var(--red)">false</code> and the packet seals normally.</div>
+
+    <h4>Trust Gate Pattern</h4>
+    <p class="guide-intro">Block agents below a reputation threshold before their action is audited — a single read-only view call, no gas required.</p>
+    <pre><code><span class="kw">const</span> verifier = <span class="kw">new</span> <span class="fn">CountersigVerifier</span>({ rpcUrl, addresses, chainId: <span class="num">11155111</span> });
+
+<span class="kw">async function</span> <span class="fn">handleAgentAction</span>(agentDid: string, action: object) {
+  <span class="kw">const</span> meets = <span class="kw">await</span> verifier.<span class="fn">meetsThreshold</span>(agentDid, <span class="num">30</span>);
+  <span class="kw">if</span> (!meets) <span class="kw">throw new</span> <span class="fn">Error</span>(`Agent does not meet minimum reputation threshold`);
+  <span class="kw">return</span> <span class="fn">auditAction</span>(agentDid, action); <span class="cm">// enrich + seal</span>
+}</code></pre>
+  </section>
+
+  <section id="ai-frameworks">
+    <h2>AI Framework Integration</h2>
+    <p class="section-lead">The pattern is the same in every framework: generate a DID at startup, include it in every audit call, verify peer agents before trusting their output. Below are working examples for the most common frameworks.</p>
+
+    <div class="fw-tabs">
+      <div class="fw-tab active" onclick="switchFw('langchain')">LangChain (Python)</div>
+      <div class="fw-tab" onclick="switchFw('autogen')">AutoGen (Python)</div>
+      <div class="fw-tab" onclick="switchFw('nodejs')">Node.js (any framework)</div>
+    </div>
+
+    <div id="fw-langchain" class="tab-pane active">
+      <h4>Audited tool wrapper</h4>
+      <pre><code><span class="kw">from</span> langchain.tools <span class="kw">import</span> BaseTool
+<span class="kw">from</span> countersig <span class="kw">import</span> CountersigAgent
+<span class="kw">import</span> httpx, os
+
+agent_identity = CountersigAgent.<span class="fn">from_env</span>()  <span class="cm"># AGENT_ED25519_SEED + AGENT_ADDRESS + CHAIN_ID</span>
+
+<span class="kw">class</span> <span class="fn">AuditedTool</span>(BaseTool):
+    agent: CountersigAgent
+    ca_api_key: str
+
+    <span class="kw">def</span> <span class="fn">_run</span>(self, query: str) -> str:
+        result = self.<span class="fn">_execute</span>(query)
+        httpx.<span class="fn">post</span>(
+            <span class="str">"https://api.counteraudit.io/v1/audit/ingest"</span>,
+            headers={<span class="str">"Authorization"</span>: f<span class="str">"Bearer {self.ca_api_key}"</span>},
+            json={
+                <span class="str">"connector_id"</span>: <span class="str">"langchain-agent"</span>,
+                <span class="str">"agent_did"</span>: self.agent.did,
+                <span class="str">"raw_event"</span>: {<span class="str">"tool"</span>: self.name, <span class="str">"query"</span>: query},
+            },
+            timeout=<span class="num">5</span>,
+        )
+        <span class="kw">return</span> result</code></pre>
+      <h4>Reputation-gated execution</h4>
+      <pre><code><span class="kw">from</span> countersig <span class="kw">import</span> CountersigVerifier
+
+verifier = CountersigVerifier.<span class="fn">from_env</span>()
+
+<span class="kw">def</span> <span class="fn">run_if_trusted</span>(agent_did: str, task: str, min_score: int = <span class="num">40</span>) -> str:
+    <span class="kw">if not</span> verifier.<span class="fn">meets_threshold</span>(agent_did, min_score):
+        <span class="kw">raise</span> <span class="fn">PermissionError</span>(f<span class="str">"Agent {agent_did} does not meet minimum score of {min_score}"</span>)
+    <span class="kw">return</span> langchain_agent.<span class="fn">run</span>(task)</code></pre>
+    </div>
+
+    <div id="fw-autogen" class="tab-pane">
+      <h4>AssistantAgent with Countersig identity</h4>
+      <pre><code><span class="kw">import</span> autogen
+<span class="kw">from</span> countersig <span class="kw">import</span> CountersigAgent
+<span class="kw">import</span> httpx, os
+
+agent_identity = CountersigAgent.<span class="fn">from_env</span>()
+
+<span class="kw">class</span> <span class="fn">CountersigAssistant</span>(autogen.AssistantAgent):
+    <span class="kw">def</span> <span class="fn">generate_reply</span>(self, messages, sender, **kwargs):
+        reply = <span class="fn">super</span>().<span class="fn">generate_reply</span>(messages, sender, **kwargs)
+        httpx.<span class="fn">post</span>(
+            <span class="str">"https://api.counteraudit.io/v1/audit/ingest"</span>,
+            headers={<span class="str">"Authorization"</span>: f<span class="str">"Bearer {os.environ['CA_API_KEY']}"</span>},
+            json={
+                <span class="str">"connector_id"</span>: <span class="str">"autogen-assistant"</span>,
+                <span class="str">"agent_did"</span>: agent_identity.did,
+                <span class="str">"raw_event"</span>: {
+                    <span class="str">"action"</span>: <span class="str">"generate_reply"</span>,
+                    <span class="str">"sender"</span>: sender.name,
+                    <span class="str">"reply_preview"</span>: str(reply)[:<span class="num">200</span>],
+                },
+            },
+            timeout=<span class="num">5</span>,
+        )
+        <span class="kw">return</span> reply
+
+assistant = <span class="fn">CountersigAssistant</span>(
+    name=<span class="str">"ResearchAssistant"</span>,
+    llm_config={<span class="str">"model"</span>: <span class="str">"claude-sonnet-4-6"</span>},
+)</code></pre>
+    </div>
+
+    <div id="fw-nodejs" class="tab-pane">
+      <h4>withAudit middleware (works with any async function)</h4>
+      <pre><code><span class="kw">import</span> { <span class="fn">CountersigAgent</span>, <span class="fn">CountersigVerifier</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
+
+<span class="kw">const</span> myAgent = <span class="kw">new</span> <span class="fn">CountersigAgent</span>({
+  privateKey:   process.env.AGENT_ED25519_SEED!,
+  agentAddress: process.env.AGENT_ADDRESS!,
+  chainId:      <span class="num">11155111</span>,
+});
+
+<span class="kw">async function</span> <span class="fn">withAudit</span>&lt;T&gt;(action: string, fn: () => <span class="fn">Promise</span>&lt;T&gt;, meta?: object): <span class="fn">Promise</span>&lt;T&gt; {
+  <span class="kw">const</span> result = <span class="kw">await</span> <span class="fn">fn</span>();
+  <span class="cm">// fire-and-forget — does not block the critical path</span>
+  <span class="fn">fetch</span>(<span class="str">'https://api.counteraudit.io/v1/audit/ingest'</span>, {
+    method: <span class="str">'POST'</span>,
+    headers: { <span class="str">'Authorization'</span>: `Bearer ${process.env.CA_API_KEY}`, <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+    body: <span class="fn">JSON.stringify</span>({ connector_id: <span class="str">'my-agent'</span>, agent_did: myAgent.did, raw_event: { action, ...meta } }),
+  }).<span class="fn">catch</span>(console.error);
+  <span class="kw">return</span> result;
+}
+
+<span class="cm">// Usage — wraps any action, zero changes to business logic</span>
+<span class="kw">const</span> summary = <span class="kw">await</span> <span class="fn">withAudit</span>(<span class="str">'summarize'</span>, () => llm.<span class="fn">summarize</span>(doc), { doc_id: doc.id });</code></pre>
+      <h4>Verify a peer agent before trusting its output</h4>
+      <pre><code><span class="kw">const</span> verifier = <span class="kw">new</span> <span class="fn">CountersigVerifier</span>({ rpcUrl, addresses, chainId: <span class="num">11155111</span> });
+
+<span class="kw">async function</span> <span class="fn">trustAgent</span>(did: string, payload: string, sig: string): <span class="fn">Promise</span>&lt;boolean&gt; {
+  <span class="kw">const</span> sigValid = <span class="kw">await</span> verifier.<span class="fn">verifySignature</span>(did, payload, sig);
+  <span class="kw">const</span> repOk    = <span class="kw">await</span> verifier.<span class="fn">meetsThreshold</span>(did, <span class="num">50</span>);
+  <span class="kw">return</span> sigValid &amp;&amp; repOk;
+}</code></pre>
+    </div>
   </section>
 
   <section id="did">
@@ -371,6 +759,45 @@ console.log(agent.did);
       <div class="rep-factor"><div class="rep-bar-wrap"><div class="rep-label">Community Verification</div><div class="rep-bar"><div class="rep-bar-fill" style="width:5%"></div></div></div><span class="rep-pts">5 pts</span></div>
       <div class="rep-factor"><div class="rep-bar-wrap"><div class="rep-label">Trust Propagation</div><div class="rep-bar"><div class="rep-bar-fill" style="width:5%"></div></div></div><span class="rep-pts">5 pts</span></div>
     </div>
+    <h4>Factor Details</h4>
+    <table class="guide-table">
+      <thead><tr><th>Factor</th><th>Max</th><th>Formula</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td>Fee Activity</td><td>30 pts</td><td><span class="rep-formula">min(30, floor(totalFeesUSD / 100))</span></td><td>On-chain transaction volume. $3,000+ in fees reaches max. Hardest to fake — requires sustained economic participation.</td></tr>
+        <tr><td>Success Rate</td><td>25 pts</td><td><span class="rep-formula">floor(successRate × 25)</span></td><td>Cryptographic task attestations submitted by counterparties. 100% success rate = 25 pts. Will be sourced from CounterAudit verified packets in Phase 2.</td></tr>
+        <tr><td>Registration Age</td><td>20 pts</td><td><span class="rep-formula">min(20, floor(log₂(days+1) × 4))</span></td><td>Logarithmic — levels off around day 31. Prevents idle old agents from dominating.</td></tr>
+        <tr><td>External Trust</td><td>15 pts</td><td><span class="rep-formula">floor(externalScore / 100 × 15)</span></td><td>SAID Protocol / Gitcoin Passport. Bridges existing verified identity credentials.</td></tr>
+        <tr><td>Community</td><td>5 pts</td><td><span class="rep-formula">max(0, 5 − flags × 2)</span></td><td>Deducted per unresolved community flag. Unflagged agents start at 5.</td></tr>
+        <tr><td>Trust Propagation</td><td>5 pts</td><td>Oracle-computed</td><td>Network effects — agents trusted by high-reputation peers propagate a fraction of that trust.</td></tr>
+      </tbody>
+    </table>
+    <h4>Age Ramp-Up</h4>
+    <p style="font-size:14px;color:var(--muted);margin-bottom:14px">A new agent cannot be trusted at the same level as one with months of economic activity. The logarithmic curve prevents instant reputation but rewards consistency.</p>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;max-width:320px;margin-bottom:24px">
+      <div class="ramp-row"><span class="ramp-day">Day 0 (just registered)</span><span class="ramp-pts">0 pts</span></div>
+      <div class="ramp-row"><span class="ramp-day">Day 1</span><span class="ramp-pts">4 pts</span></div>
+      <div class="ramp-row"><span class="ramp-day">Day 3</span><span class="ramp-pts">8 pts</span></div>
+      <div class="ramp-row"><span class="ramp-day">Day 7</span><span class="ramp-pts">12 pts</span></div>
+      <div class="ramp-row"><span class="ramp-day">Day 15</span><span class="ramp-pts">16 pts</span></div>
+      <div class="ramp-row"><span class="ramp-day">Day 31+ (maximum)</span><span class="ramp-pts">20 pts</span></div>
+    </div>
+    <div class="callout"><strong>New agent baseline: ~5 points</strong> (community score only). Reaching 50+ requires weeks of sustained activity. The 90+ range requires months. You cannot buy reputation instantly — you earn it.</div>
+    <h4>Slashing Resets Everything</h4>
+    <p style="font-size:14px;color:var(--muted);margin-bottom:20px">When an agent is slashed, <code style="font-family:var(--font-mono);font-size:12px;background:var(--code-bg);border:1px solid var(--border);padding:2px 6px;border-radius:4px;color:var(--accent2)">zeroReputation(didHash)</code> sets all six factor scores to zero. The agent status becomes <code style="font-family:var(--font-mono);font-size:12px;background:var(--code-bg);border:1px solid var(--border);padding:2px 6px;border-radius:4px;color:var(--red)">Slashed</code> — terminal, no further transitions. The stake is burned/distributed. A slashed identity cannot be reactivated; the operator must register a fresh address and start from zero. This finality is what makes the score meaningful.</p>
+    <h4>Query On-Chain</h4>
+    <pre><code><span class="cm">// Any Solidity contract can gate on reputation</span>
+<span class="kw">interface</span> <span class="fn">ICountersigReputation</span> {
+    <span class="kw">function</span> <span class="fn">getTotalScore</span>(bytes32 didHash) <span class="kw">external view returns</span> (uint8);
+    <span class="kw">function</span> <span class="fn">meetsThreshold</span>(bytes32 didHash, uint8 min) <span class="kw">external view returns</span> (bool);
+}
+
+<span class="kw">contract</span> <span class="fn">MyProtocol</span> {
+    ICountersigReputation rep = ICountersigReputation(<span class="num">0x0613C561C5003D7948Ea09dE2C1895965A5c3F27</span>);
+
+    <span class="kw">function</span> <span class="fn">onlyTrustedAgent</span>(bytes32 didHash) <span class="kw">internal view</span> {
+        <span class="kw">require</span>(rep.<span class="fn">meetsThreshold</span>(didHash, <span class="num">50</span>), <span class="str">"insufficient reputation"</span>);
+    }
+}</code></pre>
   </section>
 
   <section id="contracts">
@@ -405,5 +832,24 @@ console.log(agent.did);
     <p>Countersig Network &mdash; MIT License &mdash; <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a> &nbsp;&middot;&nbsp; <a href="https://countersig.xyz" target="_blank" rel="noopener">countersig.xyz</a></p>
   </div>
 </footer>
+<script>
+function switchTab(group, id) {
+  const section = document.getElementById('ca-tabs') ? document : document;
+  document.querySelectorAll('#ca-curl,#ca-ts,#ca-py').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('#ca-tabs .lang-tab').forEach(el => el.classList.remove('active'));
+  if (group === 'ca') {
+    const pane = document.getElementById('ca-' + id);
+    if (pane) pane.classList.add('active');
+    event.target.classList.add('active');
+  }
+}
+function switchFw(id) {
+  document.querySelectorAll('#fw-langchain,#fw-autogen,#fw-nodejs').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.fw-tab').forEach(el => el.classList.remove('active'));
+  const pane = document.getElementById('fw-' + id);
+  if (pane) pane.classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
 </body>
 </html>
