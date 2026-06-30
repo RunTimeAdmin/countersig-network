@@ -148,13 +148,13 @@
     <pre><code><span class="cm">// npm install @countersig/protocol-sdk</span>
 <span class="kw">import</span> { <span class="fn">CountersigAgent</span>, <span class="fn">registerAgent</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
 <span class="kw">import</span> { ethers } <span class="kw">from</span> <span class="str">'ethers'</span>;
-<span class="kw">import</span> nacl <span class="kw">from</span> <span class="str">'tweetnacl'</span>;
 
-<span class="kw">const</span> agent = <span class="kw">new</span> <span class="fn">CountersigAgent</span>({
-  privateKey:   nacl.randomBytes(<span class="num">32</span>),
+<span class="cm">// Generate a fresh Ed25519 keypair — no external crypto imports needed.</span>
+<span class="kw">const</span> { agent, privateKey } = <span class="fn">CountersigAgent</span>.<span class="fn">generate</span>({
   agentAddress: <span class="str">'0xYourAgentAddress'</span>,
   chainId:      <span class="num">11155111</span>,
 });
+<span class="cm">// Store privateKey (0x hex) securely — it cannot be recovered from the agent.</span>
 
 console.log(agent.did);
 <span class="cm">// → did:countersig:11155111:0xYourAgentAddress</span>

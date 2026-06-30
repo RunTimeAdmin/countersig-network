@@ -13,6 +13,8 @@ const CHAIN_ID = 11155111;
 const AGENT_ADDR = '0x0000000000000000000000000000000000001234';
 const PEER_ADDR  = '0x0000000000000000000000000000000000005678';
 
+// Internal helper — uses nacl directly because it is testing the constructor path.
+// Public API tests should use CountersigAgent.generate() instead.
 function makeAgent(address: string = AGENT_ADDR) {
   return new CountersigAgent({
     privateKey: nacl.randomBytes(32),
@@ -102,5 +104,52 @@ describe('CountersigAgent — A2A sign/verify flow', () => {
     const a1 = new CountersigAgent({ privateKey: seed, agentAddress: AGENT_ADDR, chainId: CHAIN_ID });
     const a2 = new CountersigAgent({ privateKey: seed, agentAddress: AGENT_ADDR, chainId: CHAIN_ID });
     expect(a1.publicKeyBytes32).toBe(a2.publicKeyBytes32);
+  });
+});
+
+describe('CountersigAgent.generate() — static factory', () => {
+  it('returns an agent and a hex private key without requiring a nacl import', () => {
+    const { agent, privateKey } = CountersigAgent.generate({
+      agentAddress: AGENT_ADDR,
+      chainId: CHAIN_ID,
+    });
+    expect(agent).toBeInstanceOf(CountersigAgent);
+    expect(privateKey).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+
+  it('agent DID is correct', () => {
+    const { agent } = CountersigAgent.generate({ agentAddress: AGENT_ADDR, chainId: CHAIN_ID });
+    expect(agent.did).toBe(formatDid(AGENT_ADDR, CHAIN_ID));
+  });
+
+  it('agent publicKeyBytes32 is a valid 32-byte hex string', () => {
+    const { agent } = CountersigAgent.generate({ agentAddress: AGENT_ADDR, chainId: CHAIN_ID });
+    expect(agent.publicKeyBytes32).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+
+  it('privateKey can reconstruct the same agent (round-trip)', () => {
+    const { agent: a1, privateKey } = CountersigAgent.generate({
+      agentAddress: AGENT_ADDR,
+      chainId: CHAIN_ID,
+    });
+    const a2 = new CountersigAgent({ privateKey, agentAddress: AGENT_ADDR, chainId: CHAIN_ID });
+    expect(a1.publicKeyBytes32).toBe(a2.publicKeyBytes32);
+  });
+
+  it('each call generates a unique keypair', () => {
+    const { privateKey: k1 } = CountersigAgent.generate({ agentAddress: AGENT_ADDR, chainId: CHAIN_ID });
+    const { privateKey: k2 } = CountersigAgent.generate({ agentAddress: AGENT_ADDR, chainId: CHAIN_ID });
+    expect(k1).not.toBe(k2);
+  });
+
+  it('generated agent can sign a challenge that verifies against its public key', () => {
+    const { agent } = CountersigAgent.generate({ agentAddress: AGENT_ADDR, chainId: CHAIN_ID });
+    const peerDid = formatDid(PEER_ADDR, CHAIN_ID);
+    // Simulate: peer issues challenge to this agent, agent signs it.
+    const challenge = agent.issueChallenge(peerDid);
+    const selfPayload = challenge.payload.replace(peerDid, agent.did);
+    const signature = agent.signChallenge(selfPayload);
+    const pubKey = bytes32ToPubKey(agent.publicKeyBytes32);
+    expect(verifyChallenge(selfPayload, signature, pubKey)).toBe(true);
   });
 });

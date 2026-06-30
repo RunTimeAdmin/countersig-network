@@ -1,4 +1,5 @@
-import { seedToKeyPair, pubKeyToBytes32 } from './keys';
+import nacl from 'tweetnacl';
+import { seedToKeyPair, pubKeyToBytes32, bytesToHex } from './keys';
 import { formatDid, computeDidHash } from './did';
 import { generateChallenge, signChallenge } from './challenge';
 import type { Challenge } from './types';
@@ -19,6 +20,32 @@ export class CountersigAgent {
     this._agentAddress = options.agentAddress.toLowerCase();
     this._chainId = options.chainId;
     this._challengeTtl = options.challengeTtlSeconds ?? 300;
+  }
+
+  /**
+   * Generate a new Ed25519 keypair and return a ready-to-use agent alongside
+   * the raw private key (seed) for secure storage by the caller.
+   *
+   * This is the recommended entry point for new agent creation. It keeps
+   * tweetnacl as an internal implementation detail — callers never need to
+   * import or interact with it directly.
+   *
+   * @example
+   * const { agent, privateKey } = CountersigAgent.generate({
+   *   agentAddress: '0xYourAgentAddress',
+   *   chainId: 11155111,
+   * });
+   * // Store privateKey (hex) securely — it cannot be recovered from the agent.
+   * await registerAgent(operatorWallet, agent.agentAddress, agent.publicKeyBytes32, IDENTITY_ADDRESS);
+   */
+  static generate(options: {
+    agentAddress: string;
+    chainId: number;
+    challengeTtlSeconds?: number;
+  }): { agent: CountersigAgent; privateKey: string } {
+    const seed = nacl.randomBytes(32);
+    const agent = new CountersigAgent({ ...options, privateKey: seed });
+    return { agent, privateKey: '0x' + bytesToHex(seed) };
   }
 
   get did(): string {
