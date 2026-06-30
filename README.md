@@ -13,6 +13,7 @@ As AI agents become independent economic actors, the absence of verifiable Non-H
 | [CounterAudit Integration](docs/counteraudit-integration.md) | Enterprise — embed agent identity in your audit trail |
 | [AI Framework Integration](docs/ai-frameworks.md) | Developers — LangChain, AutoGen, CrewAI, Node.js |
 | [Reputation Model](docs/reputation-model.md) | Everyone — how the 6-factor score works and grows |
+| [Token Economics](docs/tokenomics.md) | Investors / Legal — $CSIG supply, distribution, utility, and fee model |
 
 ---
 

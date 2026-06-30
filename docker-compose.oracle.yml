@@ -1,0 +1,10 @@
+services:
+  oracle:
+    build:
+      context: ./oracle
+      dockerfile: Dockerfile
+    container_name: countersig-oracle
+    restart: unless-stopped
+    env_file: ./oracle/.env
+    ports:
+      - "127.0.0.1:3030:3030"
