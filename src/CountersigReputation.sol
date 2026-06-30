@@ -162,7 +162,8 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
             + uint16(rep.externalScore)
             + uint16(rep.communityScore)
             + uint16(rep.propagationScore);
-        // Safe: max possible value is 30+25+20+15+5+5 = 100, fits in uint8.
+        // Each factor is validated at write time (updateReputation), so total <= 100.
+        assert(total <= 100);
         // forge-lint: disable-next-line(unsafe-typecast)
         return uint8(total);
     }

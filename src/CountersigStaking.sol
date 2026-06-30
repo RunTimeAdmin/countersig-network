@@ -211,9 +211,7 @@ contract CountersigStaking is
         if (stakes[didHash].amount == 0) revert NoStake(didHash);
         if (slashProposals[didHash].state == SlashState.Pending) revert SlashAlreadyPending(didHash);
 
-        // Suspend immediately to halt the agent during the dispute window.
-        identityRegistry.updateStatus(didHash, CountersigIdentity.AgentStatus.Suspended);
-
+        // Write state before the external call (CEI pattern).
         slashProposals[didHash] = SlashProposal({
             didHash: didHash,
             reporter: msg.sender,
@@ -222,6 +220,9 @@ contract CountersigStaking is
             state: SlashState.Pending,
             evidenceHash: evidenceHash
         });
+
+        // Suspend immediately to halt the agent during the dispute window.
+        identityRegistry.updateStatus(didHash, CountersigIdentity.AgentStatus.Suspended);
 
         emit SlashInitiated(didHash, msg.sender, victim, block.timestamp);
     }
