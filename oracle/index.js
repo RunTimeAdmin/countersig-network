@@ -15,6 +15,8 @@ const cfg = {
   reputationAddress: process.env.REPUTATION_ADDRESS || '',
   epochMs:           Number(process.env.EPOCH_HOURS || 24) * 3_600_000,
   port:              Number(process.env.PORT || 3030),
+  fromBlock:         Number(process.env.FROM_BLOCK  || 0),
+  logChunkSize:      Number(process.env.LOG_CHUNK_SIZE || 2000),
 };
 
 if (!cfg.rpcUrl || !cfg.privateKey || !cfg.identityAddress || !cfg.reputationAddress) {

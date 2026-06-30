@@ -14,20 +14,32 @@ const REPUTATION_ABI = [
 // AgentStatus enum — must match CountersigIdentity.sol
 const STATUS_SLASHED = 2;
 
-let provider, wallet, identityContract, reputationContract;
+let provider, wallet, identityContract, reputationContract, cfg_;
 
 function init(cfg) {
+  cfg_ = cfg;
   provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
   wallet = new ethers.Wallet(cfg.privateKey, provider);
   identityContract = new ethers.Contract(cfg.identityAddress, IDENTITY_ABI, provider);
   reputationContract = new ethers.Contract(cfg.reputationAddress, REPUTATION_ABI, wallet);
 }
 
-// Returns all agents ever registered, with their block number for cursor tracking.
-async function getRegisteredAgents(fromBlock = 0) {
+// Returns all agents registered since fromBlock, chunking getLogs into windows
+// of chunkSize blocks to stay within free-tier RPC limits (e.g. Alchemy: 10).
+async function getRegisteredAgents() {
+  const fromBlock = cfg_.fromBlock;
+  const chunkSize = cfg_.logChunkSize;
   const filter = identityContract.filters.AgentRegistered();
-  const events = await identityContract.queryFilter(filter, fromBlock, 'latest');
-  return events.map(e => ({
+  const latest = await provider.getBlockNumber();
+
+  const allEvents = [];
+  for (let start = fromBlock; start <= latest; start += chunkSize) {
+    const end = Math.min(start + chunkSize - 1, latest);
+    const chunk = await identityContract.queryFilter(filter, start, end);
+    allEvents.push(...chunk);
+  }
+
+  return allEvents.map(e => ({
     didHash: e.args.didHash,
     agentAddress: e.args.agentAddress,
     blockNumber: e.blockNumber,
