@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Countersig Network — Decentralized Identity for AI Agents</title>
+  <meta name="description" content="Countersig Network is a decentralized identity and trust protocol for autonomous AI agents. Stake $CSIG to register a verifiable DID. Build reputation. Authenticate without a central authority." />
+  <meta property="og:title" content="Countersig Network" />
+  <meta property="og:description" content="Decentralized identity and trust for autonomous AI agents." />
+  <meta property="og:url" content="https://countersig.network" />
+  <link rel="canonical" href="https://countersig.network" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0c10; --surface: #111318; --border: #1e2230;
+      --accent: #4f8ef7; --accent2: #7c5af7; --text: #e8eaf0; --muted: #8892a4;
+      --code-bg: #0d1117; --green: #3dd68c; --red: #f75a5a;
+      --font-mono: 'JetBrains Mono','Fira Code',monospace;
+      --font-sans: 'Inter',system-ui,-apple-system,sans-serif;
+      --radius: 8px;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); font-size: 16px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+    nav { border-bottom: 1px solid var(--border); padding: 18px 0; position: sticky; top: 0; background: rgba(10,12,16,0.92); backdrop-filter: blur(12px); z-index: 100; }
+    nav .inner { max-width: 860px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-family: var(--font-mono); font-size: 15px; font-weight: 600; color: var(--text); }
+    .logo span { color: var(--accent); }
+    nav ul { list-style: none; display: flex; gap: 28px; }
+    nav ul a { color: var(--muted); font-size: 14px; }
+    nav ul a:hover { color: var(--text); text-decoration: none; }
+    .hero { padding: 96px 0 72px; text-align: center; }
+    .badge { display: inline-block; background: rgba(79,142,247,0.1); border: 1px solid rgba(79,142,247,0.3); color: var(--accent); font-size: 12px; font-family: var(--font-mono); padding: 4px 12px; border-radius: 20px; margin-bottom: 24px; letter-spacing: 0.5px; }
+    h1 { font-size: clamp(32px,5vw,52px); font-weight: 700; line-height: 1.15; letter-spacing: -1px; margin-bottom: 20px; }
+    h1 .gradient { background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero p { font-size: 18px; color: var(--muted); max-width: 580px; margin: 0 auto 36px; }
+    .cta-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.15s, transform 0.15s; }
+    .btn:hover { opacity: 0.88; transform: translateY(-1px); text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+    section { padding: 72px 0; border-top: 1px solid var(--border); }
+    h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 12px; }
+    h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .section-lead { color: var(--muted); margin-bottom: 40px; max-width: 600px; }
+    .problem-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 16px; }
+    .problem-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .problem-card .icon { font-size: 22px; margin-bottom: 10px; }
+    .problem-card p { font-size: 14px; color: var(--muted); }
+    .arch-layers { display: flex; flex-direction: column; gap: 12px; }
+    .arch-layer { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; display: flex; align-items: flex-start; gap: 16px; }
+    .arch-layer .num { font-family: var(--font-mono); font-size: 11px; color: var(--accent); background: rgba(79,142,247,0.1); border: 1px solid rgba(79,142,247,0.25); border-radius: 4px; padding: 2px 7px; white-space: nowrap; margin-top: 2px; }
+    .arch-layer p { font-size: 14px; color: var(--muted); margin-top: 4px; }
+    .did-spec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }
+    .did-format { font-family: var(--font-mono); font-size: 18px; color: var(--accent); margin-bottom: 12px; }
+    .did-spec table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .did-spec th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .did-spec td { padding: 8px 0; border-bottom: 1px solid rgba(30,34,48,0.5); vertical-align: top; }
+    .did-spec td:first-child { font-family: var(--font-mono); color: var(--accent2); width: 140px; }
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; overflow-x: auto; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; margin-bottom: 16px; }
+    .kw { color: #ff7b72; } .fn { color: #d2a8ff; } .str { color: #a5d6ff; } .cm { color: #8b949e; } .num { color: #79c0ff; }
+    .rep-factors { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+    .rep-factor { display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+    .rep-bar-wrap { flex: 1; }
+    .rep-label { font-size: 13px; font-weight: 500; margin-bottom: 5px; }
+    .rep-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .rep-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; }
+    .rep-pts { font-family: var(--font-mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .contracts-table { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .contracts-table th { text-align: left; padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); background: rgba(17,19,24,0.6); }
+    .contracts-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .contracts-table tr:last-child td { border-bottom: none; }
+    .contracts-table td:first-child { font-family: var(--font-mono); font-size: 13px; color: var(--accent2); }
+    .contracts-table .addr { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+    .tag { display: inline-block; font-size: 11px; font-family: var(--font-mono); padding: 2px 8px; border-radius: 4px; background: rgba(61,214,140,0.1); color: var(--green); border: 1px solid rgba(61,214,140,0.25); }
+    .tag.pending { background: rgba(247,90,90,0.1); color: var(--red); border-color: rgba(247,90,90,0.25); }
+    .roadmap { display: flex; flex-direction: column; }
+    .roadmap-item { display: flex; gap: 20px; padding: 20px 0; border-bottom: 1px solid var(--border); }
+    .roadmap-item:last-child { border-bottom: none; }
+    .roadmap-phase { font-family: var(--font-mono); font-size: 12px; color: var(--accent); background: rgba(79,142,247,0.1); border: 1px solid rgba(79,142,247,0.25); border-radius: 4px; padding: 3px 9px; height: fit-content; white-space: nowrap; margin-top: 2px; }
+    .roadmap-phase.done { color: var(--green); background: rgba(61,214,140,0.1); border-color: rgba(61,214,140,0.25); }
+    .roadmap-item p { font-size: 14px; color: var(--muted); margin-top: 4px; }
+    footer { border-top: 1px solid var(--border); padding: 32px 0; text-align: center; color: var(--muted); font-size: 13px; }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--text); }
+    @media (max-width: 600px) { .cta-group { flex-direction: column; align-items: center; } nav ul { gap: 16px; } }
+  </style>
+</head>
+<body>
+<nav>
+  <div class="inner">
+    <span class="logo">countersig<span>.</span>network</span>
+    <ul>
+      <li><a href="#protocol">Protocol</a></li>
+      <li><a href="#did">DID Method</a></li>
+      <li><a href="#reputation">Reputation</a></li>
+      <li><a href="#contracts">Testnet</a></li>
+      <li><a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a></li>
+    </ul>
+  </div>
+</nav>
+<div class="container">
+  <div class="hero">
+    <div class="badge">TESTNET — Q3 2026</div>
+    <h1>Decentralized Identity<br />for <span class="gradient">Autonomous AI Agents</span></h1>
+    <p>Countersig Network is an open protocol that gives AI agents verifiable on-chain identities, cryptoeconomically-secured reputation scores, and trustless agent-to-agent authentication — without a central authority.</p>
+    <div class="cta-group">
+      <a class="btn btn-primary" href="#did">Register an Agent</a>
+      <a class="btn btn-secondary" href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">View on GitHub</a>
+    </div>
+  </div>
+
+  <section id="protocol">
+    <h2>The Problem</h2>
+    <p class="section-lead">AI agents can execute tasks, transact on-chain, and communicate via A2A protocols. But they cannot prove who they are. Without verifiable identity, every agent interaction requires pre-existing trust — which does not scale.</p>
+    <div class="problem-grid">
+      <div class="problem-card"><div class="icon">🎭</div><h3>No Verifiable Identity</h3><p>Any agent can claim to be any other agent. There is no cryptographic proof of ownership.</p></div>
+      <div class="problem-card"><div class="icon">📊</div><h3>No Portable Reputation</h3><p>Reputation is siloed per platform. An agent starts from zero on every new marketplace.</p></div>
+      <div class="problem-card"><div class="icon">⚠️</div><h3>No Accountability</h3><p>When an agent causes harm, there is no stake to slash and no operator to hold responsible.</p></div>
+    </div>
+    <br /><br />
+    <h2>The Protocol</h2>
+    <p class="section-lead">Three on-chain registries, one staking core, and a TypeScript SDK.</p>
+    <div class="arch-layers">
+      <div class="arch-layer"><span class="num">LAYER 3</span><div><h3>Off-Chain Verification</h3><p>Agents authenticate peer-to-peer using Ed25519 PKI challenge-response. On-chain registries serve as the source of truth for public keys and reputation scores.</p></div></div>
+      <div class="arch-layer"><span class="num">LAYER 2</span><div><h3>Decentralized Identity Layer</h3><p>The <code>did:countersig</code> method resolves on-chain state to W3C-compliant DID Documents. Any resolver can reproduce the DID hash without querying the contract.</p></div></div>
+      <div class="arch-layer"><span class="num">LAYER 1</span><div><h3>On-Chain State (EVM)</h3><p>Three UUPS-upgradeable Solidity registries: <strong>Identity</strong> (DID anchoring), <strong>Reputation</strong> (6-factor score), and <strong>Staking</strong> (bonding + slashing). All state is public and composable.</p></div></div>
+    </div>
+  </section>
+
+  <section id="did">
+    <h2>DID Method Specification</h2>
+    <p class="section-lead">The <code>did:countersig</code> method assigns each AI agent a globally unique, on-chain identifier.</p>
+    <div class="did-spec">
+      <div class="did-format">did:countersig:&lt;chainId&gt;:&lt;agentAddress&gt;</div>
+      <table>
+        <thead><tr><th>Component</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>did:countersig</td><td>Method prefix. Identifies this as a Countersig Network DID.</td></tr>
+          <tr><td>&lt;chainId&gt;</td><td>EVM chain ID (e.g. <code>1</code> for mainnet, <code>11155111</code> for Sepolia).</td></tr>
+          <tr><td>&lt;agentAddress&gt;</td><td>The agent's Ethereum address. The operator registers the agent's Ed25519 public key against it.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>Register an Agent — SDK Quickstart</h3>
+    <pre><code><span class="cm">// npm install @countersig/protocol-sdk</span>
+<span class="kw">import</span> { <span class="fn">CountersigAgent</span>, <span class="fn">registerAgent</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
+<span class="kw">import</span> { ethers } <span class="kw">from</span> <span class="str">'ethers'</span>;
+<span class="kw">import</span> nacl <span class="kw">from</span> <span class="str">'tweetnacl'</span>;
+
+<span class="kw">const</span> agent = <span class="kw">new</span> <span class="fn">CountersigAgent</span>({
+  privateKey:   nacl.randomBytes(<span class="num">32</span>),
+  agentAddress: <span class="str">'0xYourAgentAddress'</span>,
+  chainId:      <span class="num">11155111</span>,
+});
+
+console.log(agent.did);
+<span class="cm">// → did:countersig:11155111:0xYourAgentAddress</span>
+
+<span class="kw">const</span> { didHash, txHash } = <span class="kw">await</span> <span class="fn">registerAgent</span>(
+  operatorWallet, agent.agentAddress, agent.publicKeyBytes32, IDENTITY_ADDRESS
+);</code></pre>
+    <h3>Agent-to-Agent Authentication</h3>
+    <pre><code><span class="kw">import</span> { <span class="fn">CountersigVerifier</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
+
+<span class="kw">const</span> verifier = <span class="kw">new</span> <span class="fn">CountersigVerifier</span>({ rpcUrl, addresses, chainId: <span class="num">11155111</span> });
+
+<span class="cm">// B challenges A, A signs, B verifies against on-chain public key</span>
+<span class="kw">const</span> challenge = agentB.<span class="fn">issueChallenge</span>(agentA.did);
+<span class="kw">const</span> signature = agentA.<span class="fn">signChallenge</span>(challenge.payload);
+<span class="kw">const</span> valid     = <span class="kw">await</span> verifier.<span class="fn">verifySignature</span>(agentA.did, challenge.payload, signature);
+<span class="kw">const</span> trusted   = <span class="kw">await</span> verifier.<span class="fn">meetsThreshold</span>(agentA.did, <span class="num">60</span>);</code></pre>
+  </section>
+
+  <section id="reputation">
+    <h2>Reputation System</h2>
+    <p class="section-lead">A deterministic 6-factor score (0–100) computed by the oracle network every 24-hour epoch and written on-chain. Sybil-resistant: Age and Fee Activity require sustained real economic activity.</p>
+    <div class="rep-factors">
+      <div class="rep-factor"><div class="rep-bar-wrap"><div class="rep-label">Fee Activity</div><div class="rep-bar"><div class="rep-bar-fill" style="width:30%"></div></div></div><span class="rep-pts">30 pts</span></div>
+      <div class="rep-factor"><div class="rep-bar-wrap"><div class="rep-label">Success Rate</div><div class="rep-bar"><div class="rep-bar-fill" style="width:25%"></div></div></div><span class="rep-pts">25 pts</span></div>
+      <div class="rep-factor"><div class="rep-bar-wrap"><div class="rep-label">Registration Age <span style="color:var(--muted);font-weight:400;font-size:12px">(logarithmic)</span></div><div class="rep-bar"><div class="rep-bar-fill" style="width:20%"></div></div></div><span class="rep-pts">20 pts</span></div>
+      <div class="rep-factor"><div class="rep-bar-wrap"><div class="rep-label">External Trust</div><div class="rep-bar"><div class="rep-bar-fill" style="width:15%"></div></div></div><span class="rep-pts">15 pts</span></div>
+      <div class="rep-factor"><div class="rep-bar-wrap"><div class="rep-label">Community Verification</div><div class="rep-bar"><div class="rep-bar-fill" style="width:5%"></div></div></div><span class="rep-pts">5 pts</span></div>
+      <div class="rep-factor"><div class="rep-bar-wrap"><div class="rep-label">Trust Propagation</div><div class="rep-bar"><div class="rep-bar-fill" style="width:5%"></div></div></div><span class="rep-pts">5 pts</span></div>
+    </div>
+  </section>
+
+  <section id="contracts">
+    <h2>Testnet Contracts</h2>
+    <p class="section-lead">Sepolia deployment scheduled for Q3 2026. Addresses will be published here and in <code>deployments/11155111.json</code> in the repository.</p>
+    <table class="contracts-table">
+      <thead><tr><th>Contract</th><th>Address</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>CSIGToken</td><td class="addr">Pending deployment</td><td><span class="tag pending">Pending</span></td></tr>
+        <tr><td>CountersigIdentity</td><td class="addr">Pending deployment</td><td><span class="tag pending">Pending</span></td></tr>
+        <tr><td>CountersigReputation</td><td class="addr">Pending deployment</td><td><span class="tag pending">Pending</span></td></tr>
+        <tr><td>CountersigStaking</td><td class="addr">Pending deployment</td><td><span class="tag pending">Pending</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="roadmap">
+    <h2>Roadmap</h2>
+    <div class="roadmap">
+      <div class="roadmap-item"><span class="roadmap-phase done">DONE</span><div><h3>Core Protocol Contracts</h3><p>Identity, Reputation, and Staking registries. 58 Foundry tests passing including 3× 1,000-run fuzz suites. CEI security fix applied.</p></div></div>
+      <div class="roadmap-item"><span class="roadmap-phase done">DONE</span><div><h3>TypeScript SDK v1.0.0-alpha.1</h3><p><code>@countersig/protocol-sdk</code> — Ed25519 key management, challenge-response, DID formatting, on-chain verifier, W3C DID Document builder. 43 unit tests passing.</p></div></div>
+      <div class="roadmap-item"><span class="roadmap-phase done">DONE</span><div><h3>$CSIG Testnet Token + Deploy Script</h3><p>ERC-20 testnet token with faucet. Foundry deploy script writes <code>deployments/11155111.json</code> automatically.</p></div></div>
+      <div class="roadmap-item"><span class="roadmap-phase">Q3 2026</span><div><h3>Sepolia Testnet Deployment</h3><p>Deploy all contracts. Publish addresses. Run SDK integration tests end-to-end.</p></div></div>
+      <div class="roadmap-item"><span class="roadmap-phase">Q4 2026</span><div><h3>Oracle Network</h3><p>Decentralized reputation aggregation. External trust integrations (SAID Protocol, Gitcoin Passport).</p></div></div>
+      <div class="roadmap-item"><span class="roadmap-phase">Q1 2027</span><div><h3>Mainnet + $CSIG TGE</h3><p>Tier-1 security audit. Mainnet deployment. $CSIG Token Generation Event.</p></div></div>
+      <div class="roadmap-item"><span class="roadmap-phase">Q2 2027</span><div><h3>Cross-Chain Expansion</h3><p>Solana and Base state mirroring via LayerZero.</p></div></div>
+    </div>
+  </section>
+</div>
+<footer>
+  <div class="container">
+    <p>Countersig Network &mdash; MIT License &mdash; <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a> &nbsp;&middot;&nbsp; <a href="https://countersig.xyz" target="_blank" rel="noopener">countersig.xyz</a></p>
+  </div>
+</footer>
+</body>
+</html>
