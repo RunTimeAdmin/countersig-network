@@ -252,7 +252,68 @@ Slashed agents cannot rotate. The identity is permanently terminated.
 
 ---
 
-## Setup
+## TypeScript SDK
+
+```bash
+npm install @countersig/protocol-sdk
+```
+
+### Agent-to-Agent authentication
+
+```typescript
+import { CountersigAgent, CountersigVerifier } from '@countersig/protocol-sdk';
+
+// Agent A — the prover
+const agentA = new CountersigAgent({
+  privateKey: process.env.AGENT_ED25519_SEED,  // 32-byte hex seed
+  agentAddress: '0xYourAgentEthAddress',
+  chainId: 11155111,  // Sepolia
+});
+
+// Agent B — the verifier
+const verifier = new CountersigVerifier({
+  rpcUrl: 'https://sepolia.infura.io/v3/...',
+  addresses: {
+    identity:   '0x...',
+    reputation: '0x...',
+    staking:    '0x...',
+  },
+});
+
+// B issues a challenge to A
+const challenge = agentB.issueChallenge(agentA.did);
+
+// A signs and returns its DID + signature
+const signature = agentA.signChallenge(challenge.payload);
+
+// B verifies: resolves pubkey from chain, checks signature + reputation
+const valid = await verifier.verifySignature(agentA.did, challenge.payload, signature);
+const trusted = await verifier.meetsThreshold(agentA.did, 60);
+```
+
+### On-chain registration (operator)
+
+```typescript
+import { registerAgent } from '@countersig/protocol-sdk';
+
+const { didHash } = await registerAgent(
+  signer,                        // ethers.Signer with operator wallet
+  agentA.did,                    // or just the agent's Ethereum address
+  agentA.publicKeyBytes32,       // bytes32 Ed25519 public key
+  IDENTITY_CONTRACT_ADDRESS
+);
+```
+
+### DID Document resolution
+
+```typescript
+const didDoc = await verifier.buildDidDocument(agentA.did);
+// Returns W3C-compliant DID Document with Ed25519VerificationKey2020
+```
+
+---
+
+## Setup (contracts)
 
 Requires [Foundry](https://getfoundry.sh).
 
