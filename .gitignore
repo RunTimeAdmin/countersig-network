@@ -1,0 +1,19 @@
+# Foundry build artifacts
+out/
+cache/
+
+# Dependencies (installed by forge install)
+lib/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
