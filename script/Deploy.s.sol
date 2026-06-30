@@ -120,7 +120,7 @@ contract Deploy is Script {
         vm.serializeAddress(key, "reputation", reputation);
         string memory json = vm.serializeAddress(key, "staking", staking);
 
-        vm.createDir("deployments", false);
+        vm.createDir("deployments", true);
         vm.writeFile(
             string.concat("deployments/", vm.toString(block.chainid), ".json"),
             json

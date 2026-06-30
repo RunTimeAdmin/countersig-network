@@ -189,14 +189,14 @@ console.log(agent.did);
 
   <section id="contracts">
     <h2>Testnet Contracts</h2>
-    <p class="section-lead">Sepolia deployment scheduled for Q3 2026. Addresses will be published here and in <code>deployments/11155111.json</code> in the repository.</p>
+    <p class="section-lead">Live on Sepolia testnet. Chain ID 11155111. Addresses mirrored in <code>deployments/11155111.json</code> in the repository.</p>
     <table class="contracts-table">
       <thead><tr><th>Contract</th><th>Address</th><th>Status</th></tr></thead>
       <tbody>
-        <tr><td>CSIGToken</td><td class="addr">Pending deployment</td><td><span class="tag pending">Pending</span></td></tr>
-        <tr><td>CountersigIdentity</td><td class="addr">Pending deployment</td><td><span class="tag pending">Pending</span></td></tr>
-        <tr><td>CountersigReputation</td><td class="addr">Pending deployment</td><td><span class="tag pending">Pending</span></td></tr>
-        <tr><td>CountersigStaking</td><td class="addr">Pending deployment</td><td><span class="tag pending">Pending</span></td></tr>
+        <tr><td>CSIGToken</td><td class="addr"><a href="https://sepolia.etherscan.io/address/0x6d5E311e821c3e279dBe9833F8e33828f7716FA8" target="_blank" rel="noopener">0x6d5E311e821c3e279dBe9833F8e33828f7716FA8</a></td><td><span class="tag">Verified</span></td></tr>
+        <tr><td>CountersigIdentity</td><td class="addr"><a href="https://sepolia.etherscan.io/address/0xD738A4cBe525d214f86059A8328786f072D6fbe1" target="_blank" rel="noopener">0xD738A4cBe525d214f86059A8328786f072D6fbe1</a></td><td><span class="tag">Verified</span></td></tr>
+        <tr><td>CountersigReputation</td><td class="addr"><a href="https://sepolia.etherscan.io/address/0x0613C561C5003D7948Ea09dE2C1895965A5c3F27" target="_blank" rel="noopener">0x0613C561C5003D7948Ea09dE2C1895965A5c3F27</a></td><td><span class="tag">Verified</span></td></tr>
+        <tr><td>CountersigStaking</td><td class="addr"><a href="https://sepolia.etherscan.io/address/0x60347640d46B55E7dafFA8F385bc55eE2D77ee85" target="_blank" rel="noopener">0x60347640d46B55E7dafFA8F385bc55eE2D77ee85</a></td><td><span class="tag">Verified</span></td></tr>
       </tbody>
     </table>
   </section>
@@ -207,7 +207,7 @@ console.log(agent.did);
       <div class="roadmap-item"><span class="roadmap-phase done">DONE</span><div><h3>Core Protocol Contracts</h3><p>Identity, Reputation, and Staking registries. 58 Foundry tests passing including 3× 1,000-run fuzz suites. CEI security fix applied.</p></div></div>
       <div class="roadmap-item"><span class="roadmap-phase done">DONE</span><div><h3>TypeScript SDK v1.0.0-alpha.1</h3><p><code>@countersig/protocol-sdk</code> — Ed25519 key management, challenge-response, DID formatting, on-chain verifier, W3C DID Document builder. 43 unit tests passing.</p></div></div>
       <div class="roadmap-item"><span class="roadmap-phase done">DONE</span><div><h3>$CSIG Testnet Token + Deploy Script</h3><p>ERC-20 testnet token with faucet. Foundry deploy script writes <code>deployments/11155111.json</code> automatically.</p></div></div>
-      <div class="roadmap-item"><span class="roadmap-phase">Q3 2026</span><div><h3>Sepolia Testnet Deployment</h3><p>Deploy all contracts. Publish addresses. Run SDK integration tests end-to-end.</p></div></div>
+      <div class="roadmap-item"><span class="roadmap-phase done">DONE</span><div><h3>Sepolia Testnet Deployment</h3><p>All 4 contracts deployed and source-verified on Sepolia. Addresses live above. SDK integration tests activate automatically.</p></div></div>
       <div class="roadmap-item"><span class="roadmap-phase">Q4 2026</span><div><h3>Oracle Network</h3><p>Decentralized reputation aggregation. External trust integrations (SAID Protocol, Gitcoin Passport).</p></div></div>
       <div class="roadmap-item"><span class="roadmap-phase">Q1 2027</span><div><h3>Mainnet + $CSIG TGE</h3><p>Tier-1 security audit. Mainnet deployment. $CSIG Token Generation Event.</p></div></div>
       <div class="roadmap-item"><span class="roadmap-phase">Q2 2027</span><div><h3>Cross-Chain Expansion</h3><p>Solana and Base state mirroring via LayerZero.</p></div></div>
