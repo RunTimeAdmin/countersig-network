@@ -9,6 +9,9 @@ lib/
 packages/sdk/dist/
 packages/sdk/node_modules/
 
+# Oracle
+oracle/node_modules/
+
 # Environment
 .env
 .env.*

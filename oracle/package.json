@@ -1,0 +1,18 @@
+{
+  "name": "@countersig/oracle-stub",
+  "version": "0.1.0",
+  "description": "Testnet reputation oracle — reads attestations, writes 6-factor scores to CountersigReputation.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test scoring.test.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "ethers": "^6.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
