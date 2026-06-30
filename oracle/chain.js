@@ -32,11 +32,13 @@ async function getRegisteredAgents() {
   const filter = identityContract.filters.AgentRegistered();
   const latest = await provider.getBlockNumber();
 
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
   const allEvents = [];
   for (let start = fromBlock; start <= latest; start += chunkSize) {
     const end = Math.min(start + chunkSize - 1, latest);
     const chunk = await identityContract.queryFilter(filter, start, end);
     allEvents.push(...chunk);
+    if (end < latest) await sleep(400);
   }
 
   return allEvents.map(e => ({
