@@ -275,19 +275,20 @@ import { CountersigAgent, CountersigVerifier } from '@countersig/protocol-sdk';
 
 // Agent A — the prover
 const agentA = new CountersigAgent({
-  privateKey: process.env.AGENT_ED25519_SEED,  // 32-byte hex seed
-  agentAddress: '0xYourAgentEthAddress',
-  chainId: 11155111,  // Sepolia
+  privateKey: process.env.AGENT_A_ED25519_SEED,  // 32-byte hex seed
+  agentAddress: '0xAgentAAddress',
+  chainId: 11155111,
 });
 
-// Agent B — the verifier
+// Agent B — the verifier (has its own identity + a verifier for on-chain lookups)
+const agentB = new CountersigAgent({
+  privateKey: process.env.AGENT_B_ED25519_SEED,
+  agentAddress: '0xAgentBAddress',
+  chainId: 11155111,
+});
 const verifier = new CountersigVerifier({
   rpcUrl: 'https://sepolia.infura.io/v3/...',
-  addresses: {
-    identity:   '0x...',
-    reputation: '0x...',
-    staking:    '0x...',
-  },
+  addresses: { identity: '0x...', reputation: '0x...', staking: '0x...' },
 });
 
 // B issues a challenge to A
