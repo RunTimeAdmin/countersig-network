@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Framework Integration — Countersig Network</title>
   <meta name="description" content="Integrate Countersig identity with LangChain, AutoGen, CrewAI, and other AI agent frameworks." />
-  <link rel="icon" type="image/png" href="/assets/logo.png" />
-  <link rel="stylesheet" href="/assets/style.css" />
+  <link rel="icon" type="image/png" href="../assets/logo.png" />
+  <link rel="stylesheet" href="../assets/style.css" />
   <style>
     .fw-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
     .fw-tab { font-size: 12px; font-family: var(--font-mono); padding: 5px 14px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); color: var(--muted); cursor: pointer; transition: all 0.15s; }
@@ -22,14 +22,14 @@
 </div>
 <nav>
   <div class="nav-inner">
-    <a href="/" class="logo">countersig<span class="dot">.</span>network</a>
+    <a href="../" class="logo">countersig<span class="dot">.</span>network</a>
     <ul class="nav-links">
-      <li><a href="/docs/quickstart.html">Quickstart</a></li>
-      <li><a href="/docs/reputation.html">Reputation</a></li>
-      <li><a href="/docs/counteraudit.html">CounterAudit</a></li>
-      <li><a href="/docs/ai-frameworks.html" class="active">AI Frameworks</a></li>
+      <li><a href="quickstart.html">Quickstart</a></li>
+      <li><a href="reputation.html">Reputation</a></li>
+      <li><a href="counteraudit.html">CounterAudit</a></li>
+      <li><a href="ai-frameworks.html" class="active">AI Frameworks</a></li>
       <li><a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a></li>
-      <li><a href="/docs/quickstart.html" class="nav-cta">Get Started</a></li>
+      <li><a href="quickstart.html" class="nav-cta">Get Started</a></li>
     </ul>
   </div>
 </nav>
@@ -41,20 +41,20 @@
       <aside class="docs-sidebar">
         <div class="sidebar-section">
           <div class="sidebar-label">Getting Started</div>
-          <ul class="sidebar-links"><li><a href="/docs/quickstart.html">Quickstart</a></li></ul>
+          <ul class="sidebar-links"><li><a href="quickstart.html">Quickstart</a></li></ul>
         </div>
         <div class="sidebar-section">
           <div class="sidebar-label">Protocol</div>
           <ul class="sidebar-links">
-            <li><a href="/docs/reputation.html">Reputation Model</a></li>
-            <li><a href="/#contracts">Testnet Contracts</a></li>
+            <li><a href="reputation.html">Reputation Model</a></li>
+            <li><a href="../#contracts">Testnet Contracts</a></li>
           </ul>
         </div>
         <div class="sidebar-section">
           <div class="sidebar-label">Integrations</div>
           <ul class="sidebar-links">
-            <li><a href="/docs/counteraudit.html">CounterAudit</a></li>
-            <li><a href="/docs/ai-frameworks.html" class="active">AI Frameworks</a></li>
+            <li><a href="counteraudit.html">CounterAudit</a></li>
+            <li><a href="ai-frameworks.html" class="active">AI Frameworks</a></li>
           </ul>
         </div>
         <div class="sidebar-section">
@@ -70,7 +70,7 @@
         <h2>AI Framework Integration</h2>
         <p>The pattern is the same in every framework: generate a Countersig DID at agent startup, then include it in every CounterAudit ingest call. The DID travels with the agent's actions, creating a cryptographically-linked audit trail tied to an on-chain identity.</p>
 
-        <div class="callout"><strong>Prerequisite:</strong> Your agent must be registered on Countersig. Follow the <a href="/docs/quickstart.html">Quickstart</a> first, then set <code>AGENT_DID</code> in your environment.</div>
+        <div class="callout"><strong>Prerequisite:</strong> Your agent must be registered on Countersig. Follow the <a href="quickstart.html">Quickstart</a> first, then set <code>AGENT_DID</code> in your environment.</div>
 
         <h3>Framework Examples</h3>
 
@@ -206,12 +206,12 @@ class AuditedTool(BaseTool):
 <footer>
   <div class="footer-inner">
     <div class="footer-left">
-      <a href="/" style="font-family:var(--font-mono);font-size:13px;color:var(--muted)">countersig.network</a> &nbsp;·&nbsp; MIT License
+      <a href="../" style="font-family:var(--font-mono);font-size:13px;color:var(--muted)">countersig.network</a> &nbsp;·&nbsp; MIT License
     </div>
     <div class="footer-links">
-      <a href="/docs/quickstart.html">Quickstart</a>
-      <a href="/docs/reputation.html">Reputation</a>
-      <a href="/docs/counteraudit.html">CounterAudit</a>
+      <a href="quickstart.html">Quickstart</a>
+      <a href="reputation.html">Reputation</a>
+      <a href="counteraudit.html">CounterAudit</a>
       <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a>
     </div>
   </div>
