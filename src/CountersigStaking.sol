@@ -74,10 +74,16 @@ contract CountersigStaking is
 
     uint256 public minimumStake;
     uint256 public challengePeriod; // seconds
-    uint256 public unbondingPeriod; // seconds a withdrawal sits queued (and still slashable) before it can be claimed
 
     mapping(bytes32 => Stake) public stakes;           // didHash => stake
     mapping(bytes32 => SlashProposal) public slashProposals; // didHash => active proposal
+
+    // Appended for the unbonding upgrade. New storage variables must always be
+    // declared AFTER all existing ones: inserting above the mappings shifts their
+    // base slots, and every live stake/proposal on the already-deployed proxy
+    // would become unreachable after a UUPS upgrade.
+    // Seconds a withdrawal sits queued (and still slashable) before it can be claimed.
+    uint256 public unbondingPeriod;
 
     // -------------------------------------------------------------------------
     // Events
@@ -153,6 +159,24 @@ contract CountersigStaking is
         unbondingPeriod = unbondingPeriod_;
     }
 
+    /**
+     * @notice Upgrade initializer for proxies deployed before the unbonding feature.
+     * @dev    The live proxy already consumed initializer version 1, so the new
+     *         initialize() can never run there — without this, unbondingPeriod would
+     *         silently stay 0 after the upgrade and withdrawals would be instantly
+     *         claimable. Call via upgradeToAndCall so upgrade + config are atomic.
+     *         Admin-gated because on FRESH deployments version 2 is still unconsumed
+     *         after initialize(), and this must not be callable by a stranger.
+     */
+    function initializeV2(uint256 unbondingPeriod_)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+        reinitializer(2)
+    {
+        unbondingPeriod = unbondingPeriod_;
+        emit UnbondingPeriodUpdated(unbondingPeriod_);
+    }
+
     // -------------------------------------------------------------------------
     // Staking
     // -------------------------------------------------------------------------
@@ -226,6 +250,14 @@ contract CountersigStaking is
 
         CountersigIdentity.AgentIdentity memory id = identityRegistry.getIdentity(didHash);
         if (id.operator != msg.sender) revert NotOperator(didHash, msg.sender);
+
+        // A queued withdrawal is still slashable. Without this check, safety would
+        // depend on unbondingPeriod staying longer than challengePeriod (both are
+        // admin-tunable): if it were ever shorter, an operator could claim mid-slash
+        // and dodge the queued portion.
+        if (slashProposals[didHash].state == SlashState.Pending) {
+            revert SlashAlreadyPending(didHash);
+        }
 
         uint256 claimableAt = s.unbondingAt + unbondingPeriod;
         if (block.timestamp < claimableAt) revert UnbondingPeriodActive(didHash, claimableAt);

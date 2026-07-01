@@ -117,6 +117,14 @@ async function getChallengeWindow() {
   return Number(seconds);
 }
 
+// The contract compares against block.timestamp, so epoch decisions should use
+// the chain's clock rather than the oracle host's (local skew ahead of the chain
+// would trigger premature finalize attempts that just revert and waste gas).
+async function getLatestBlockTimestamp() {
+  const block = await provider.getBlock('latest');
+  return Number(block.timestamp);
+}
+
 module.exports = {
   init,
   reset,
@@ -126,6 +134,7 @@ module.exports = {
   finalizeScore,
   getPendingScore,
   getChallengeWindow,
+  getLatestBlockTimestamp,
   pruneAgent,
   STATUS_SLASHED,
 };

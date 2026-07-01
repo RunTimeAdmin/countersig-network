@@ -146,6 +146,26 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
         challengeWindow = challengeWindow_;
     }
 
+    /**
+     * @notice Upgrade initializer for proxies deployed before optimistic scoring.
+     * @dev    The live proxy already consumed initializer version 1, so the new
+     *         initialize() can never run there — without this, challengeWindow would
+     *         silently stay 0 after the upgrade, making every proposal instantly
+     *         finalizable and rejection impossible. Call via upgradeToAndCall so
+     *         upgrade + config are atomic. Admin-gated because on FRESH deployments
+     *         version 2 is still unconsumed after initialize(), and this must not be
+     *         callable by a stranger.
+     */
+    function initializeV2(address slashingCommittee, uint256 challengeWindow_)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+        reinitializer(2)
+    {
+        if (slashingCommittee != address(0)) _grantRole(SLASHING_COMMITTEE_ROLE, slashingCommittee);
+        challengeWindow = challengeWindow_;
+        emit ChallengeWindowUpdated(challengeWindow_);
+    }
+
     // -------------------------------------------------------------------------
     // Write functions
     // -------------------------------------------------------------------------
@@ -187,11 +207,23 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
         uint256 finalizableAt = pending.proposedAt + challengeWindow;
         if (block.timestamp < finalizableAt) revert ChallengeWindowActive(didHash, finalizableAt);
 
-        reputations[didHash] = pending.data;
-        reputations[didHash].lastUpdated = block.timestamp;
+        // Stamp lastUpdated in memory so the struct is written to storage once,
+        // and compute the event's total from the same memory copy instead of
+        // re-reading the six factors back out of storage.
+        ReputationData memory data = pending.data;
+        data.lastUpdated = block.timestamp;
+        reputations[didHash] = data;
         delete pendingScores[didHash];
 
-        emit ReputationUpdated(didHash, getTotalScore(didHash), block.timestamp);
+        uint16 total = uint16(data.feeScore)
+            + uint16(data.successScore)
+            + uint16(data.ageScore)
+            + uint16(data.externalScore)
+            + uint16(data.communityScore)
+            + uint16(data.propagationScore);
+        // Each factor is validated at propose time, so total <= 100.
+        // forge-lint: disable-next-line(unsafe-typecast)
+        emit ReputationUpdated(didHash, uint8(total), block.timestamp);
     }
 
     /**

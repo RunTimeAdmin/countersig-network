@@ -76,6 +76,11 @@ async function runEpochInner() {
   let finalized = 0;
 
   const challengeWindow = await chain.getChallengeWindow();
+  // Use the chain's clock for window math, not the local one — the contract
+  // compares against block.timestamp. Fetched once per epoch; going slightly
+  // stale during a long epoch only errs toward 'skip', never toward a
+  // premature finalize that would revert.
+  const chainNow = await chain.getLatestBlockTimestamp();
 
   // Phase 1: reads are stateless — fire them concurrently instead of one at a time.
   const agentInfos = await Promise.all(
@@ -105,7 +110,7 @@ async function runEpochInner() {
         continue;
       }
 
-      const action = decideAction(pending, challengeWindow, Date.now() / 1000);
+      const action = decideAction(pending, challengeWindow, chainNow);
 
       if (action === 'skip') {
         console.log(`[oracle]   ${didHash.slice(0, 10)}… score still pending, waiting out challenge window`);
@@ -113,9 +118,19 @@ async function runEpochInner() {
       }
 
       if (action === 'finalize-then-propose') {
-        const finalizeTx = await chain.finalizeScore(didHash);
-        console.log(`[oracle]   ${didHash.slice(0, 10)}… finalized tx=${finalizeTx.slice(0, 10)}…`);
-        finalized++;
+        try {
+          const finalizeTx = await chain.finalizeScore(didHash);
+          console.log(`[oracle]   ${didHash.slice(0, 10)}… finalized tx=${finalizeTx.slice(0, 10)}…`);
+          finalized++;
+        } catch (finalizeErr) {
+          // finalizeReputation is permissionless, so another party can front-run
+          // us. If the pending proposal is gone, that's exactly what happened —
+          // the score is live, carry on and propose fresh. Anything else is a
+          // real failure and should skip this agent via the outer catch.
+          const still = await chain.getPendingScore(didHash);
+          if (still.exists) throw finalizeErr;
+          console.log(`[oracle]   ${didHash.slice(0, 10)}… already finalized by another party`);
+        }
       }
 
       const att       = attestations.get(didHash) ?? { successful: 0, total: 0 };

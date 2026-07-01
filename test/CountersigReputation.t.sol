@@ -388,4 +388,51 @@ contract CountersigReputationTest is Test {
         vm.prank(stranger);
         rep.setChallengeWindow(2 hours);
     }
+
+    // -------------------------------------------------------------------------
+    // Upgrade safety
+    // -------------------------------------------------------------------------
+
+    function test_storageLayout_reputationsMappingPinnedToSlot0() public {
+        _proposeAndFinalize(DID, maxScore);
+
+        // reputations must stay at slot 0 — the Sepolia proxy was deployed with
+        // this layout. New variables go after challengeWindow (slot 2), never
+        // above the mappings. The six uint8 factors pack into the struct's first
+        // slot in declaration order.
+        bytes32 repSlot = keccak256(abi.encode(DID, uint256(0)));
+        uint256 packed = uint256(vm.load(address(rep), repSlot));
+        uint256 expected = 30
+            | (uint256(25) << 8)
+            | (uint256(20) << 16)
+            | (uint256(15) << 24)
+            | (uint256(5) << 32)
+            | (uint256(5) << 40);
+        assertEq(packed, expected);
+    }
+
+    function test_initializeV2_grantsCommitteeAndSetsWindow_onceOnly() public {
+        address newCommittee = makeAddr("newCommittee");
+        vm.prank(admin);
+        rep.initializeV2(newCommittee, 2 hours);
+
+        assertEq(rep.challengeWindow(), 2 hours);
+        assertTrue(rep.hasRole(rep.SLASHING_COMMITTEE_ROLE(), newCommittee));
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        vm.prank(admin);
+        rep.initializeV2(newCommittee, 3 hours);
+    }
+
+    function test_initializeV2_reverts_notAdmin() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                stranger,
+                bytes32(0) // DEFAULT_ADMIN_ROLE
+            )
+        );
+        vm.prank(stranger);
+        rep.initializeV2(stranger, 0);
+    }
 }

@@ -499,6 +499,78 @@ contract CountersigStakingTest is Test {
     }
 
     // -------------------------------------------------------------------------
+    // Upgrade safety
+    // -------------------------------------------------------------------------
+
+    // These two tests pin the mapping base slots the Sepolia proxy was deployed
+    // with. If either fails, a storage variable was inserted above the mappings,
+    // which shifts their base slots and makes every live stake/proposal
+    // unreachable after a UUPS upgrade. New variables must be appended after
+    // unbondingPeriod (slot 7), never inserted earlier.
+
+    function test_storageLayout_stakesMappingPinnedToSlot5() public {
+        _deposit(); // 2 * MIN_STAKE
+
+        bytes32 stakeSlot = keccak256(abi.encode(didHash, uint256(5)));
+        assertEq(uint256(vm.load(address(staking), stakeSlot)), MIN_STAKE * 2);
+    }
+
+    function test_storageLayout_slashProposalsMappingPinnedToSlot6() public {
+        _deposit();
+        vm.prank(committee);
+        staking.initiateSlash(didHash, victim, "evidence");
+
+        // First field of SlashProposal is the didHash itself.
+        bytes32 proposalSlot = keccak256(abi.encode(didHash, uint256(6)));
+        assertEq(vm.load(address(staking), proposalSlot), didHash);
+    }
+
+    function test_initializeV2_setsUnbondingPeriod_onceOnly() public {
+        vm.prank(admin);
+        staking.initializeV2(30 days);
+        assertEq(staking.unbondingPeriod(), 30 days);
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        vm.prank(admin);
+        staking.initializeV2(10 days);
+    }
+
+    function test_initializeV2_reverts_notAdmin() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                stranger,
+                bytes32(0) // DEFAULT_ADMIN_ROLE
+            )
+        );
+        vm.prank(stranger);
+        staking.initializeV2(30 days);
+    }
+
+    function test_claimWithdrawal_reverts_pendingSlash_evenAfterUnbondingElapsed() public {
+        // Make unbonding shorter than the 7-day challenge period so the claim
+        // window opens while the slash is still pending. Without the guard in
+        // claimWithdrawal, the operator could pull the queued funds mid-slash.
+        vm.prank(admin);
+        staking.setUnbondingPeriod(1 days);
+
+        _deposit();
+        vm.prank(operator);
+        staking.initiateWithdrawal(didHash, MIN_STAKE);
+
+        vm.prank(committee);
+        staking.initiateSlash(didHash, victim, "evidence");
+
+        vm.warp(block.timestamp + 2 days); // past unbonding, inside the challenge period
+
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigStaking.SlashAlreadyPending.selector, didHash)
+        );
+        vm.prank(operator);
+        staking.claimWithdrawal(didHash);
+    }
+
+    // -------------------------------------------------------------------------
     // Fuzz: stake roundtrip
     // -------------------------------------------------------------------------
 

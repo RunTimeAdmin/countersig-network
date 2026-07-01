@@ -15,8 +15,11 @@ const CFG = {
 
 // Minimal fakes covering only the ethers.Contract/Provider surface chain.js
 // actually calls — no real network, no real ethers objects.
-function makeFakeProvider(latestBlock) {
-  return { getBlockNumber: async () => latestBlock };
+function makeFakeProvider(latestBlock, timestamp = 1_700_000_000) {
+  return {
+    getBlockNumber: async () => latestBlock,
+    getBlock: async () => ({ timestamp: BigInt(timestamp) }),
+  };
 }
 
 function makeFakeIdentityContract({ events = [], identities = {} } = {}) {
@@ -226,4 +229,16 @@ test('getChallengeWindow: converts to a number', async () => {
   const window = await chain.getChallengeWindow();
   assert.equal(window, 21600);
   assert.equal(typeof window, 'number');
+});
+
+test('getLatestBlockTimestamp: converts block timestamp to a number', async () => {
+  chain.init(CFG, {
+    provider: makeFakeProvider(120, 1_700_000_123),
+    identityContract: makeFakeIdentityContract(),
+    reputationContract: makeFakeReputationContract(),
+  });
+
+  const ts = await chain.getLatestBlockTimestamp();
+  assert.equal(ts, 1_700_000_123);
+  assert.equal(typeof ts, 'number');
 });
