@@ -17,8 +17,11 @@ export const REPUTATION_ABI = [
 
 export const STAKING_ABI = [
   'function depositStake(bytes32 didHash, uint256 amount)',
-  'function withdrawStake(bytes32 didHash, uint256 amount)',
+  'function initiateWithdrawal(bytes32 didHash, uint256 amount)',
+  'function claimWithdrawal(bytes32 didHash)',
   'function getStake(bytes32 didHash) view returns (uint256)',
   'function hasMinimumStake(bytes32 didHash) view returns (bool)',
   'function minimumStake() view returns (uint256)',
+  'function unbondingPeriod() view returns (uint256)',
+  'function getPendingWithdrawal(bytes32 didHash) view returns (uint256 amount, uint256 claimableAt)',
 ] as const;

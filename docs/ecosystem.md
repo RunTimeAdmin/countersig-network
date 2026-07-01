@@ -20,7 +20,7 @@ The bond. Agents stake $CSIG before registration. If the agent misbehaves, a 3-o
 
 ### Oracle
 
-An off-chain service that watches the `AgentRegistered` events on Identity, aggregates on-chain signals (fee volume, attestations, age, external trust), and calls `updateReputation()` on the Reputation contract every epoch. The reference implementation is in `oracle/`. In Phase 2 this will be replaced by a decentralized oracle network.
+An off-chain service that watches the `AgentRegistered` events on Identity, aggregates on-chain signals (fee volume, attestations, age, external trust), and calls `proposeReputation()` on the Reputation contract every epoch. Proposed scores sit through a challenge window (rejectable by the slashing committee) before anyone can call `finalizeReputation()` to make them live. The reference implementation is in `oracle/`. In Phase 2 this will be replaced by a decentralized oracle network.
 
 ### CounterAudit (integration partner)
 

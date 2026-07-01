@@ -8,12 +8,14 @@ import "../src/CountersigReputation.sol";
 contract CountersigReputationTest is Test {
     CountersigReputation rep;
 
-    address admin    = makeAddr("admin");
-    address oracle   = makeAddr("oracle");
-    address staking  = makeAddr("staking");
-    address stranger = makeAddr("stranger");
+    address admin     = makeAddr("admin");
+    address oracle    = makeAddr("oracle");
+    address staking   = makeAddr("staking");
+    address committee = makeAddr("committee");
+    address stranger  = makeAddr("stranger");
 
     bytes32 constant DID = keccak256("did:countersig:11155111:0xagent");
+    uint256 constant CHALLENGE_WINDOW = 1 hours;
 
     CountersigReputation.ReputationData maxScore = CountersigReputation.ReputationData({
         feeScore: 30,
@@ -27,17 +29,126 @@ contract CountersigReputationTest is Test {
 
     function setUp() public {
         CountersigReputation impl = new CountersigReputation();
-        bytes memory init = abi.encodeCall(CountersigReputation.initialize, (admin, oracle, staking));
+        bytes memory init = abi.encodeCall(
+            CountersigReputation.initialize,
+            (admin, oracle, staking, committee, CHALLENGE_WINDOW)
+        );
         rep = CountersigReputation(address(new ERC1967Proxy(address(impl), init)));
     }
 
+    // Propose then warp past the challenge window and finalize — the common path
+    // used by tests that just need a score live on-chain.
+    function _proposeAndFinalize(bytes32 didHash, CountersigReputation.ReputationData memory data) internal {
+        vm.prank(oracle);
+        rep.proposeReputation(didHash, data);
+        vm.warp(block.timestamp + CHALLENGE_WINDOW + 1);
+        rep.finalizeReputation(didHash);
+    }
+
     // -------------------------------------------------------------------------
-    // updateReputation
+    // proposeReputation
     // -------------------------------------------------------------------------
 
-    function test_updateReputation_success() public {
+    function test_proposeReputation_success() public {
         vm.prank(oracle);
-        rep.updateReputation(DID, maxScore);
+        rep.proposeReputation(DID, maxScore);
+
+        CountersigReputation.PendingScore memory pending = rep.getPendingScore(DID);
+        assertTrue(pending.exists);
+        assertEq(pending.data.feeScore, 30);
+        assertEq(pending.proposedAt, block.timestamp);
+
+        // Not live yet — still zero until finalized.
+        assertEq(rep.getTotalScore(DID), 0);
+    }
+
+    function test_proposeReputation_reverts_notOracle() public {
+        vm.expectRevert();
+        vm.prank(stranger);
+        rep.proposeReputation(DID, maxScore);
+    }
+
+    function test_proposeReputation_replacesExistingPending() public {
+        vm.startPrank(oracle);
+        rep.proposeReputation(DID, maxScore);
+
+        CountersigReputation.ReputationData memory lower = maxScore;
+        lower.feeScore = 10;
+        vm.warp(block.timestamp + 10);
+        rep.proposeReputation(DID, lower);
+        vm.stopPrank();
+
+        CountersigReputation.PendingScore memory pending = rep.getPendingScore(DID);
+        assertEq(pending.data.feeScore, 10);
+        assertEq(pending.proposedAt, block.timestamp);
+    }
+
+    function test_proposeReputation_reverts_feeScoreOverMax() public {
+        CountersigReputation.ReputationData memory bad = maxScore;
+        bad.feeScore = 31;
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigReputation.ScoreOutOfRange.selector, "feeScore", 31, 30)
+        );
+        vm.prank(oracle);
+        rep.proposeReputation(DID, bad);
+    }
+
+    function test_proposeReputation_reverts_successScoreOverMax() public {
+        CountersigReputation.ReputationData memory bad = maxScore;
+        bad.successScore = 26;
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigReputation.ScoreOutOfRange.selector, "successScore", 26, 25)
+        );
+        vm.prank(oracle);
+        rep.proposeReputation(DID, bad);
+    }
+
+    function test_proposeReputation_reverts_ageScoreOverMax() public {
+        CountersigReputation.ReputationData memory bad = maxScore;
+        bad.ageScore = 21;
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigReputation.ScoreOutOfRange.selector, "ageScore", 21, 20)
+        );
+        vm.prank(oracle);
+        rep.proposeReputation(DID, bad);
+    }
+
+    function test_proposeReputation_reverts_externalScoreOverMax() public {
+        CountersigReputation.ReputationData memory bad = maxScore;
+        bad.externalScore = 16;
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigReputation.ScoreOutOfRange.selector, "externalScore", 16, 15)
+        );
+        vm.prank(oracle);
+        rep.proposeReputation(DID, bad);
+    }
+
+    function test_proposeReputation_reverts_communityScoreOverMax() public {
+        CountersigReputation.ReputationData memory bad = maxScore;
+        bad.communityScore = 6;
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigReputation.ScoreOutOfRange.selector, "communityScore", 6, 5)
+        );
+        vm.prank(oracle);
+        rep.proposeReputation(DID, bad);
+    }
+
+    function test_proposeReputation_reverts_propagationScoreOverMax() public {
+        CountersigReputation.ReputationData memory bad = maxScore;
+        bad.propagationScore = 6;
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigReputation.ScoreOutOfRange.selector, "propagationScore", 6, 5)
+        );
+        vm.prank(oracle);
+        rep.proposeReputation(DID, bad);
+    }
+
+    // -------------------------------------------------------------------------
+    // finalizeReputation
+    // -------------------------------------------------------------------------
+
+    function test_finalizeReputation_success() public {
+        _proposeAndFinalize(DID, maxScore);
 
         CountersigReputation.ReputationData memory stored = rep.getReputation(DID);
         assertEq(stored.feeScore, 30);
@@ -46,72 +157,93 @@ contract CountersigReputationTest is Test {
         assertEq(stored.externalScore, 15);
         assertEq(stored.communityScore, 5);
         assertEq(stored.propagationScore, 5);
+
+        CountersigReputation.PendingScore memory pending = rep.getPendingScore(DID);
+        assertFalse(pending.exists);
     }
 
-    function test_updateReputation_reverts_notOracle() public {
+    function test_finalizeReputation_reverts_beforeWindowElapsed() public {
+        vm.prank(oracle);
+        rep.proposeReputation(DID, maxScore);
+
+        vm.expectRevert();
+        rep.finalizeReputation(DID);
+    }
+
+    function test_finalizeReputation_reverts_noPending() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigReputation.NoScorePending.selector, DID)
+        );
+        rep.finalizeReputation(DID);
+    }
+
+    function test_finalizeReputation_callableByAnyone() public {
+        vm.prank(oracle);
+        rep.proposeReputation(DID, maxScore);
+        vm.warp(block.timestamp + CHALLENGE_WINDOW + 1);
+
+        vm.prank(stranger);
+        rep.finalizeReputation(DID);
+
+        assertEq(rep.getTotalScore(DID), 100);
+    }
+
+    // -------------------------------------------------------------------------
+    // rejectReputation
+    // -------------------------------------------------------------------------
+
+    function test_rejectReputation_success() public {
+        vm.prank(oracle);
+        rep.proposeReputation(DID, maxScore);
+
+        vm.prank(committee);
+        rep.rejectReputation(DID);
+
+        CountersigReputation.PendingScore memory pending = rep.getPendingScore(DID);
+        assertFalse(pending.exists);
+        // Existing finalized score (none yet) is untouched — still zero, not the rejected proposal.
+        assertEq(rep.getTotalScore(DID), 0);
+    }
+
+    function test_rejectReputation_doesNotAffectExistingFinalizedScore() public {
+        _proposeAndFinalize(DID, maxScore);
+
+        CountersigReputation.ReputationData memory lower = maxScore;
+        lower.feeScore = 5;
+        vm.prank(oracle);
+        rep.proposeReputation(DID, lower);
+
+        vm.prank(committee);
+        rep.rejectReputation(DID);
+
+        assertEq(rep.getTotalScore(DID), 100);
+    }
+
+    function test_rejectReputation_reverts_notCommittee() public {
+        vm.prank(oracle);
+        rep.proposeReputation(DID, maxScore);
+
         vm.expectRevert();
         vm.prank(stranger);
-        rep.updateReputation(DID, maxScore);
+        rep.rejectReputation(DID);
     }
 
-    function test_updateReputation_reverts_feeScoreOverMax() public {
-        CountersigReputation.ReputationData memory bad = maxScore;
-        bad.feeScore = 31;
+    function test_rejectReputation_reverts_noPending() public {
         vm.expectRevert(
-            abi.encodeWithSelector(CountersigReputation.ScoreOutOfRange.selector, "feeScore", 31, 30)
+            abi.encodeWithSelector(CountersigReputation.NoScorePending.selector, DID)
         );
-        vm.prank(oracle);
-        rep.updateReputation(DID, bad);
+        vm.prank(committee);
+        rep.rejectReputation(DID);
     }
 
-    function test_updateReputation_reverts_successScoreOverMax() public {
-        CountersigReputation.ReputationData memory bad = maxScore;
-        bad.successScore = 26;
-        vm.expectRevert(
-            abi.encodeWithSelector(CountersigReputation.ScoreOutOfRange.selector, "successScore", 26, 25)
-        );
+    function test_rejectReputation_reverts_afterWindowExpired() public {
         vm.prank(oracle);
-        rep.updateReputation(DID, bad);
-    }
+        rep.proposeReputation(DID, maxScore);
+        vm.warp(block.timestamp + CHALLENGE_WINDOW + 1);
 
-    function test_updateReputation_reverts_ageScoreOverMax() public {
-        CountersigReputation.ReputationData memory bad = maxScore;
-        bad.ageScore = 21;
-        vm.expectRevert(
-            abi.encodeWithSelector(CountersigReputation.ScoreOutOfRange.selector, "ageScore", 21, 20)
-        );
-        vm.prank(oracle);
-        rep.updateReputation(DID, bad);
-    }
-
-    function test_updateReputation_reverts_externalScoreOverMax() public {
-        CountersigReputation.ReputationData memory bad = maxScore;
-        bad.externalScore = 16;
-        vm.expectRevert(
-            abi.encodeWithSelector(CountersigReputation.ScoreOutOfRange.selector, "externalScore", 16, 15)
-        );
-        vm.prank(oracle);
-        rep.updateReputation(DID, bad);
-    }
-
-    function test_updateReputation_reverts_communityScoreOverMax() public {
-        CountersigReputation.ReputationData memory bad = maxScore;
-        bad.communityScore = 6;
-        vm.expectRevert(
-            abi.encodeWithSelector(CountersigReputation.ScoreOutOfRange.selector, "communityScore", 6, 5)
-        );
-        vm.prank(oracle);
-        rep.updateReputation(DID, bad);
-    }
-
-    function test_updateReputation_reverts_propagationScoreOverMax() public {
-        CountersigReputation.ReputationData memory bad = maxScore;
-        bad.propagationScore = 6;
-        vm.expectRevert(
-            abi.encodeWithSelector(CountersigReputation.ScoreOutOfRange.selector, "propagationScore", 6, 5)
-        );
-        vm.prank(oracle);
-        rep.updateReputation(DID, bad);
+        vm.expectRevert();
+        vm.prank(committee);
+        rep.rejectReputation(DID);
     }
 
     // -------------------------------------------------------------------------
@@ -119,8 +251,7 @@ contract CountersigReputationTest is Test {
     // -------------------------------------------------------------------------
 
     function test_getTotalScore_maxIs100() public {
-        vm.prank(oracle);
-        rep.updateReputation(DID, maxScore);
+        _proposeAndFinalize(DID, maxScore);
         assertEq(rep.getTotalScore(DID), 100);
     }
 
@@ -153,8 +284,7 @@ contract CountersigReputationTest is Test {
             lastUpdated: 0
         });
 
-        vm.prank(oracle);
-        rep.updateReputation(DID, data);
+        _proposeAndFinalize(DID, data);
 
         assertLe(rep.getTotalScore(DID), 100);
     }
@@ -164,14 +294,24 @@ contract CountersigReputationTest is Test {
     // -------------------------------------------------------------------------
 
     function test_zeroReputation_clearsAllScores() public {
-        vm.prank(oracle);
-        rep.updateReputation(DID, maxScore);
+        _proposeAndFinalize(DID, maxScore);
         assertEq(rep.getTotalScore(DID), 100);
 
         vm.prank(staking);
         rep.zeroReputation(DID);
 
         assertEq(rep.getTotalScore(DID), 0);
+    }
+
+    function test_zeroReputation_clearsPendingProposal() public {
+        vm.prank(oracle);
+        rep.proposeReputation(DID, maxScore);
+
+        vm.prank(staking);
+        rep.zeroReputation(DID);
+
+        CountersigReputation.PendingScore memory pending = rep.getPendingScore(DID);
+        assertFalse(pending.exists);
     }
 
     function test_zeroReputation_reverts_notStaking() public {
@@ -185,13 +325,28 @@ contract CountersigReputationTest is Test {
     // -------------------------------------------------------------------------
 
     function test_meetsThreshold_trueAbove() public {
-        vm.prank(oracle);
-        rep.updateReputation(DID, maxScore);
+        _proposeAndFinalize(DID, maxScore);
         assertTrue(rep.meetsThreshold(DID, 60));
         assertTrue(rep.meetsThreshold(DID, 100));
     }
 
     function test_meetsThreshold_falseBelow() public view {
         assertFalse(rep.meetsThreshold(DID, 1));
+    }
+
+    // -------------------------------------------------------------------------
+    // setChallengeWindow
+    // -------------------------------------------------------------------------
+
+    function test_setChallengeWindow_success() public {
+        vm.prank(admin);
+        rep.setChallengeWindow(2 hours);
+        assertEq(rep.challengeWindow(), 2 hours);
+    }
+
+    function test_setChallengeWindow_reverts_notAdmin() public {
+        vm.expectRevert();
+        vm.prank(stranger);
+        rep.setChallengeWindow(2 hours);
     }
 }

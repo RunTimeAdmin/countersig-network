@@ -8,11 +8,14 @@ const IDENTITY_ABI = [
 ];
 
 const REPUTATION_ABI = [
-  'function updateReputation(bytes32 didHash, tuple(uint8 feeScore, uint8 successScore, uint8 ageScore, uint8 externalScore, uint8 communityScore, uint8 propagationScore, uint256 lastUpdated) data)',
+  'function proposeReputation(bytes32 didHash, tuple(uint8 feeScore, uint8 successScore, uint8 ageScore, uint8 externalScore, uint8 communityScore, uint8 propagationScore, uint256 lastUpdated) data)',
+  'function finalizeReputation(bytes32 didHash)',
+  'function getPendingScore(bytes32 didHash) view returns (tuple(tuple(uint8 feeScore, uint8 successScore, uint8 ageScore, uint8 externalScore, uint8 communityScore, uint8 propagationScore, uint256 lastUpdated) data, uint256 proposedAt, bool exists))',
+  'function challengeWindow() view returns (uint256)',
 ];
 // Note: lastUpdated in the tuple above is required by the contract's function selector
-// (ABI shape), but the contract always overwrites it with block.timestamp on write —
-// see updateReputation() in CountersigReputation.sol. The client-side value is discarded.
+// (ABI shape), but the contract always overwrites it with block.timestamp on finalize —
+// see finalizeReputation() in CountersigReputation.sol. The client-side value is discarded.
 
 // AgentStatus enum — must match CountersigIdentity.sol
 const STATUS_SLASHED = 2;
@@ -75,8 +78,8 @@ async function getAgentInfo(didHash) {
   };
 }
 
-async function writeReputation(didHash, scores) {
-  const tx = await reputationContract.updateReputation(didHash, {
+async function proposeScore(didHash, scores) {
+  const tx = await reputationContract.proposeReputation(didHash, {
     feeScore:         scores.feeScore,
     successScore:     scores.successScore,
     ageScore:         scores.ageScore,
@@ -89,4 +92,31 @@ async function writeReputation(didHash, scores) {
   return tx.hash;
 }
 
-module.exports = { init, getRegisteredAgents, getAgentInfo, writeReputation, pruneAgent, STATUS_SLASHED };
+async function finalizeScore(didHash) {
+  const tx = await reputationContract.finalizeReputation(didHash);
+  await tx.wait(1);
+  return tx.hash;
+}
+
+// Returns { exists, proposedAt } — proposedAt is 0 when no proposal is pending.
+async function getPendingScore(didHash) {
+  const pending = await reputationContract.getPendingScore(didHash);
+  return { exists: pending.exists, proposedAt: Number(pending.proposedAt) };
+}
+
+async function getChallengeWindow() {
+  const seconds = await reputationContract.challengeWindow();
+  return Number(seconds);
+}
+
+module.exports = {
+  init,
+  getRegisteredAgents,
+  getAgentInfo,
+  proposeScore,
+  finalizeScore,
+  getPendingScore,
+  getChallengeWindow,
+  pruneAgent,
+  STATUS_SLASHED,
+};

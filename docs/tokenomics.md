@@ -114,7 +114,7 @@ This is **categorically different** from the fee burn and must be documented and
 
 ## 8. Oracle Operator Economics
 
-Oracle operators are the entities that run the reputation scoring epoch service, submit `updateReputation()` transactions on-chain, and maintain the price feed for the $CSIG/USD fee adjustment. They are a critical security component of the network.
+Oracle operators are the entities that run the reputation scoring epoch service, submit `proposeReputation()` and `finalizeReputation()` transactions on-chain, and maintain the price feed for the $CSIG/USD fee adjustment. They are a critical security component of the network.
 
 **Why run an oracle at mainnet?**
 
@@ -122,7 +122,7 @@ Oracle operators are the entities that run the reputation scoring epoch service,
 |:---|:---|
 | Query fee share | 100% of query fees during Stage 1. Decreasing share in Stages 2 and 3, but absolute revenue grows with network usage. |
 | Treasury subsidy | Year 1: the Ecosystem & Partners allocation (15% of supply) includes a dedicated oracle operator grant program. Oracle operators who commit to a minimum uptime SLA and epoch submission frequency receive CSIG grants from this allocation, disbursed quarterly against verified on-chain performance. |
-| Epoch submission gas | Gas costs for `updateReputation()` calls are reimbursed from the treasury during Stage 1. |
+| Epoch submission gas | Gas costs for `proposeReputation()` and `finalizeReputation()` calls are reimbursed from the treasury during Stage 1. |
 
 **Minimum viable oracle set at mainnet:** 3 independent operators. The goal is 7+ operators within 12 months of mainnet. A formal application and onboarding process for independent node operators will be published 60 days before mainnet launch. Any party that meets the technical requirements and posts a $CSIG performance bond will be eligible to apply to join the oracle set via governance vote.
 

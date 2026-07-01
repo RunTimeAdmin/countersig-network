@@ -127,7 +127,7 @@
         <p>The algorithm is designed so that creating fake identities to farm reputation is economically irrational. A brand-new agent cannot score above 5 (community baseline) without sustained economic activity over time. The logarithmic age formula front-loads rewards for early legitimate registrations while making rapid score accumulation impossible for freshly created Sybil identities.</p>
 
         <h3>Oracle Epochs</h3>
-        <p>The oracle network runs on a 24-hour epoch cycle. At the end of each epoch, the oracle aggregates on-chain signals for every active agent, computes the 6-factor scores, and calls <code>updateReputation(didHash, ReputationData)</code> on the <code>CountersigReputation</code> contract. The contract validates that each factor is within its cap before writing.</p>
+        <p>The oracle network runs on an epoch cycle. At the end of each epoch, the oracle aggregates on-chain signals for every active agent, computes the 6-factor scores, and calls <code>proposeReputation(didHash, ReputationData)</code> on the <code>CountersigReputation</code> contract, which validates each factor is within its cap before accepting it. A proposed score sits through a challenge window (rejectable by the slashing committee) before anyone can call <code>finalizeReputation(didHash)</code> to make it live.</p>
 
         <h3>Reading a Score On-Chain</h3>
         <pre><code><span class="cm">// Solidity — gate a function on minimum reputation</span>

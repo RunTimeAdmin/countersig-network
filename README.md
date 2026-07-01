@@ -57,7 +57,7 @@ graph TB
     B -->|"resolve DID"| R
     R -->|"reads pubkey + status"| ID
     U -->|"query score"| REP
-    OC -->|"updateReputation()"| REP
+    OC -->|"propose → finalize"| REP
     ST -->|"updateStatus(Slashed)"| ID
     ST -->|"zeroReputation()"| REP
 ```
@@ -243,21 +243,34 @@ sequenceDiagram
     end
 ```
 
-### Reputation Update Lifecycle
+### Reputation Update Lifecycle (Optimistic Scoring)
+
+Reputation updates go through a challenge window before taking effect, rather than writing atomically. This gives the slashing committee a chance to reject a bad proposal before it goes live, without needing a full multi-oracle consensus system.
 
 ```mermaid
 sequenceDiagram
     participant UC as User / Counterparty
     participant OR as Oracle Network
     participant REP as CountersigReputation
+    participant CM as Slashing Committee
 
     UC->>OR: submit cryptographic attestation of task success
-    Note over OR: 24-hour epoch aggregation across all attestations
+    Note over OR: epoch aggregation across all attestations
     OR->>OR: compute 6-factor scores for each agent
-    OR->>REP: updateReputation(didHash, ReputationData)
+    OR->>REP: proposeReputation(didHash, ReputationData)
     REP->>REP: validate per-factor caps
-    REP-->>OR: ReputationUpdated(didHash, totalScore)
-    Note over REP: Score available on-chain for A2A threshold checks
+    REP-->>OR: ScoreProposed(didHash, proposedAt)
+    Note over REP: Challenge window open (e.g. 1-6 hours)
+
+    alt Committee rejects during the window
+        CM->>REP: rejectReputation(didHash)
+        REP-->>CM: ScoreRejected(didHash)
+        Note over REP: Previous finalized score is untouched
+    else Window elapses unchallenged
+        UC->>REP: finalizeReputation(didHash) — permissionless
+        REP-->>UC: ReputationUpdated(didHash, totalScore)
+        Note over REP: Score now live for A2A threshold checks
+    end
 ```
 
 ---

@@ -51,6 +51,8 @@ contract CountersigStaking is
     struct Stake {
         uint256 amount;
         uint256 lockedAt;
+        uint256 unbondingAmount; // queued for withdrawal, still slashable until claimed
+        uint256 unbondingAt;     // when unbonding was initiated
     }
 
     struct SlashProposal {
@@ -72,6 +74,7 @@ contract CountersigStaking is
 
     uint256 public minimumStake;
     uint256 public challengePeriod; // seconds
+    uint256 public unbondingPeriod; // seconds a withdrawal sits queued (and still slashable) before it can be claimed
 
     mapping(bytes32 => Stake) public stakes;           // didHash => stake
     mapping(bytes32 => SlashProposal) public slashProposals; // didHash => active proposal
@@ -81,12 +84,14 @@ contract CountersigStaking is
     // -------------------------------------------------------------------------
 
     event StakeDeposited(bytes32 indexed didHash, address indexed operator, uint256 amount);
-    event StakeWithdrawn(bytes32 indexed didHash, address indexed operator, uint256 amount);
+    event WithdrawalInitiated(bytes32 indexed didHash, address indexed operator, uint256 amount, uint256 claimableAt);
+    event WithdrawalClaimed(bytes32 indexed didHash, address indexed operator, uint256 amount);
     event SlashInitiated(bytes32 indexed didHash, address indexed reporter, address indexed victim, uint256 initiatedAt);
     event SlashDisputed(bytes32 indexed didHash, address indexed operator);
     event SlashExecuted(bytes32 indexed didHash, uint256 burned, uint256 toVictim, uint256 toReporter);
     event MinimumStakeUpdated(uint256 newMinimum);
     event ChallengePeriodUpdated(uint256 newPeriod);
+    event UnbondingPeriodUpdated(uint256 newPeriod);
 
     // -------------------------------------------------------------------------
     // Errors
@@ -101,6 +106,9 @@ contract CountersigStaking is
     error ChallengePeriodExpired(bytes32 didHash, uint256 expiredAt);
     error NotOperator(bytes32 didHash, address caller);
     error ZeroAddress();
+    error NoWithdrawalPending(bytes32 didHash);
+    error WithdrawalAlreadyPending(bytes32 didHash);
+    error UnbondingPeriodActive(bytes32 didHash, uint256 claimableAt);
 
     // -------------------------------------------------------------------------
     // Constructor / Initializer
@@ -118,6 +126,7 @@ contract CountersigStaking is
      * @param csigToken_         $CSIG ERC20 token address.
      * @param minimumStake_      Minimum $CSIG (in wei) required to register an agent.
      * @param challengePeriod_   Seconds the operator has to dispute a slash (e.g. 7 days = 604800).
+     * @param unbondingPeriod_   Seconds a withdrawal sits queued (and still slashable) before it can be claimed.
      */
     function initialize(
         address admin,
@@ -125,7 +134,8 @@ contract CountersigStaking is
         address reputationRegistry_,
         address csigToken_,
         uint256 minimumStake_,
-        uint256 challengePeriod_
+        uint256 challengePeriod_,
+        uint256 unbondingPeriod_
     ) external initializer {
         if (admin == address(0) || csigToken_ == address(0)) revert ZeroAddress();
         if (identityRegistry_ == address(0) || reputationRegistry_ == address(0)) revert ZeroAddress();
@@ -140,6 +150,7 @@ contract CountersigStaking is
         csigToken = IERC20(csigToken_);
         minimumStake = minimumStake_;
         challengePeriod = challengePeriod_;
+        unbondingPeriod = unbondingPeriod_;
     }
 
     // -------------------------------------------------------------------------
@@ -167,13 +178,20 @@ contract CountersigStaking is
     }
 
     /**
-     * @notice Withdraw stake. Only permitted if agent is Active and no slash is pending.
-     * @dev    Operators must keep stake above minimumStake. A full withdrawal requires
-     *         setting the agent to Suspended first via CountersigIdentity.updateStatus.
+     * @notice Queue a withdrawal. Only permitted if agent is Active and no slash is pending.
+     * @dev    Moves `amount` from the active stake into an unbonding queue for
+     *         unbondingPeriod seconds. The queued amount is still subject to slashing
+     *         during that window (see executeSlash) — queuing a withdrawal does not let
+     *         an operator escape accountability for behavior discovered before it clears.
+     *         Only one withdrawal may be queued at a time per agent; claim it before
+     *         queuing another. Operators must keep the remaining active stake above
+     *         minimumStake unless withdrawing to zero (which requires the agent to be
+     *         Suspended first via CountersigIdentity.updateStatus).
      */
-    function withdrawStake(bytes32 didHash, uint256 amount) external nonReentrant {
+    function initiateWithdrawal(bytes32 didHash, uint256 amount) external nonReentrant {
         Stake storage s = stakes[didHash];
         if (s.amount == 0) revert NoStake(didHash);
+        if (s.unbondingAmount != 0) revert WithdrawalAlreadyPending(didHash);
 
         CountersigIdentity.AgentIdentity memory id = identityRegistry.getIdentity(didHash);
         if (id.operator != msg.sender) revert NotOperator(didHash, msg.sender);
@@ -190,9 +208,35 @@ contract CountersigStaking is
         }
 
         s.amount = remaining;
+        s.unbondingAmount = amount;
+        s.unbondingAt = block.timestamp;
+
+        emit WithdrawalInitiated(didHash, msg.sender, amount, block.timestamp + unbondingPeriod);
+    }
+
+    /**
+     * @notice Claim a queued withdrawal once the unbonding period has elapsed.
+     * @dev    Reverts if a slash was executed during the window — executeSlash sweeps
+     *         and zeroes the unbonding queue along with the active stake, so there is
+     *         nothing left to claim.
+     */
+    function claimWithdrawal(bytes32 didHash) external nonReentrant {
+        Stake storage s = stakes[didHash];
+        if (s.unbondingAmount == 0) revert NoWithdrawalPending(didHash);
+
+        CountersigIdentity.AgentIdentity memory id = identityRegistry.getIdentity(didHash);
+        if (id.operator != msg.sender) revert NotOperator(didHash, msg.sender);
+
+        uint256 claimableAt = s.unbondingAt + unbondingPeriod;
+        if (block.timestamp < claimableAt) revert UnbondingPeriodActive(didHash, claimableAt);
+
+        uint256 amount = s.unbondingAmount;
+        s.unbondingAmount = 0;
+        s.unbondingAt = 0;
+
         csigToken.safeTransfer(msg.sender, amount);
 
-        emit StakeWithdrawn(didHash, msg.sender, amount);
+        emit WithdrawalClaimed(didHash, msg.sender, amount);
     }
 
     // -------------------------------------------------------------------------
@@ -273,8 +317,13 @@ contract CountersigStaking is
         }
 
         Stake storage s = stakes[didHash];
-        uint256 totalSlashed = s.amount;
+        // Sweep both the active stake and any queued withdrawal — an unbonding
+        // request in flight must not let an operator dodge a slash discovered
+        // before the withdrawal actually clears.
+        uint256 totalSlashed = s.amount + s.unbondingAmount;
         s.amount = 0;
+        s.unbondingAmount = 0;
+        s.unbondingAt = 0;
 
         proposal.state = SlashState.Executed;
 
@@ -309,6 +358,11 @@ contract CountersigStaking is
         emit ChallengePeriodUpdated(newPeriod);
     }
 
+    function setUnbondingPeriod(uint256 newPeriod) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        unbondingPeriod = newPeriod;
+        emit UnbondingPeriodUpdated(newPeriod);
+    }
+
     // -------------------------------------------------------------------------
     // View functions
     // -------------------------------------------------------------------------
@@ -319,6 +373,11 @@ contract CountersigStaking is
 
     function hasMinimumStake(bytes32 didHash) external view returns (bool) {
         return stakes[didHash].amount >= minimumStake;
+    }
+
+    function getPendingWithdrawal(bytes32 didHash) external view returns (uint256 amount, uint256 claimableAt) {
+        Stake storage s = stakes[didHash];
+        return (s.unbondingAmount, s.unbondingAmount == 0 ? 0 : s.unbondingAt + unbondingPeriod);
     }
 
     function getSlashProposal(bytes32 didHash) external view returns (SlashProposal memory) {

@@ -33,8 +33,10 @@ contract CountersigStakingTest is Test {
 
     bytes32 constant PUB_KEY = bytes32(uint256(0xdeadbeef));
 
-    uint256 constant MIN_STAKE  = 1000e18;
-    uint256 constant CHALLENGE  = 7 days;
+    uint256 constant MIN_STAKE     = 1000e18;
+    uint256 constant CHALLENGE     = 7 days;
+    uint256 constant UNBONDING     = 21 days;
+    uint256 constant SCORE_WINDOW  = 1 hours;
 
     bytes32 didHash;
 
@@ -55,7 +57,7 @@ contract CountersigStakingTest is Test {
         // Deploy rep proxy (no staking address yet).
         rep = CountersigReputation(address(new ERC1967Proxy(
             address(repImpl),
-            abi.encodeCall(CountersigReputation.initialize, (admin, address(0), address(0)))
+            abi.encodeCall(CountersigReputation.initialize, (admin, address(0), address(0), committee, SCORE_WINDOW))
         )));
 
         // Deploy staking proxy with identity + rep.
@@ -67,7 +69,8 @@ contract CountersigStakingTest is Test {
                 address(rep),
                 address(csig),
                 MIN_STAKE,
-                CHALLENGE
+                CHALLENGE,
+                UNBONDING
             ))
         )));
 
@@ -86,6 +89,18 @@ contract CountersigStakingTest is Test {
         csig.mint(operator, 10_000e18);
         vm.prank(operator);
         csig.approve(address(staking), type(uint256).max);
+    }
+
+    // Propose + finalize a score via the optimistic flow, used by tests that just
+    // need a live on-chain score without exercising the challenge window itself.
+    function _finalizeScore(bytes32 did, CountersigReputation.ReputationData memory data) internal {
+        bytes32 oracleRole = rep.ORACLE_ROLE();
+        vm.prank(admin);
+        rep.grantRole(oracleRole, admin);
+        vm.prank(admin);
+        rep.proposeReputation(did, data);
+        vm.warp(block.timestamp + SCORE_WINDOW + 1);
+        rep.finalizeReputation(did);
     }
 
     // -------------------------------------------------------------------------
@@ -129,7 +144,7 @@ contract CountersigStakingTest is Test {
     }
 
     // -------------------------------------------------------------------------
-    // withdrawStake
+    // initiateWithdrawal / claimWithdrawal
     // -------------------------------------------------------------------------
 
     function _deposit() internal {
@@ -137,16 +152,68 @@ contract CountersigStakingTest is Test {
         staking.depositStake(didHash, MIN_STAKE * 2);
     }
 
-    function test_withdrawStake_partialAllowed() public {
+    function test_initiateWithdrawal_queuesAmount() public {
         _deposit();
 
         vm.prank(operator);
-        staking.withdrawStake(didHash, MIN_STAKE);
+        staking.initiateWithdrawal(didHash, MIN_STAKE);
 
         assertEq(staking.getStake(didHash), MIN_STAKE);
+        (uint256 amount, uint256 claimableAt) = staking.getPendingWithdrawal(didHash);
+        assertEq(amount, MIN_STAKE);
+        assertEq(claimableAt, block.timestamp + UNBONDING);
     }
 
-    function test_withdrawStake_reverts_belowMinWhileActive() public {
+    function test_claimWithdrawal_afterUnbondingPeriod() public {
+        _deposit();
+
+        vm.prank(operator);
+        staking.initiateWithdrawal(didHash, MIN_STAKE);
+
+        vm.warp(block.timestamp + UNBONDING + 1);
+
+        uint256 before = csig.balanceOf(operator);
+        vm.prank(operator);
+        staking.claimWithdrawal(didHash);
+
+        assertEq(csig.balanceOf(operator), before + MIN_STAKE);
+        (uint256 amount,) = staking.getPendingWithdrawal(didHash);
+        assertEq(amount, 0);
+    }
+
+    function test_claimWithdrawal_reverts_beforeUnbondingElapsed() public {
+        _deposit();
+
+        vm.prank(operator);
+        staking.initiateWithdrawal(didHash, MIN_STAKE);
+
+        vm.expectRevert();
+        vm.prank(operator);
+        staking.claimWithdrawal(didHash);
+    }
+
+    function test_claimWithdrawal_reverts_noneQueued() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigStaking.NoWithdrawalPending.selector, didHash)
+        );
+        vm.prank(operator);
+        staking.claimWithdrawal(didHash);
+    }
+
+    function test_initiateWithdrawal_reverts_alreadyQueued() public {
+        _deposit();
+
+        vm.prank(operator);
+        staking.initiateWithdrawal(didHash, MIN_STAKE / 2);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigStaking.WithdrawalAlreadyPending.selector, didHash)
+        );
+        vm.prank(operator);
+        staking.initiateWithdrawal(didHash, MIN_STAKE / 2);
+    }
+
+    function test_initiateWithdrawal_reverts_belowMinWhileActive() public {
         _deposit();
 
         uint256 tooMuch = MIN_STAKE + 1;
@@ -159,25 +226,28 @@ contract CountersigStakingTest is Test {
             )
         );
         vm.prank(operator);
-        staking.withdrawStake(didHash, tooMuch);
+        staking.initiateWithdrawal(didHash, tooMuch);
     }
 
-    function test_withdrawStake_fullAllowedWhenSuspended() public {
+    function test_initiateWithdrawal_fullAllowedWhenSuspended() public {
         _deposit();
 
         vm.prank(operator);
         identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Suspended);
 
-        uint256 before = csig.balanceOf(operator);
-
         vm.prank(operator);
-        staking.withdrawStake(didHash, MIN_STAKE * 2);
+        staking.initiateWithdrawal(didHash, MIN_STAKE * 2);
 
-        assertEq(csig.balanceOf(operator), before + MIN_STAKE * 2);
         assertEq(staking.getStake(didHash), 0);
+
+        vm.warp(block.timestamp + UNBONDING + 1);
+        uint256 before = csig.balanceOf(operator);
+        vm.prank(operator);
+        staking.claimWithdrawal(didHash);
+        assertEq(csig.balanceOf(operator), before + MIN_STAKE * 2);
     }
 
-    function test_withdrawStake_reverts_pendingSlash() public {
+    function test_initiateWithdrawal_reverts_pendingSlash() public {
         _deposit();
 
         vm.prank(committee);
@@ -187,7 +257,34 @@ contract CountersigStakingTest is Test {
             abi.encodeWithSelector(CountersigStaking.SlashAlreadyPending.selector, didHash)
         );
         vm.prank(operator);
-        staking.withdrawStake(didHash, MIN_STAKE);
+        staking.initiateWithdrawal(didHash, MIN_STAKE);
+    }
+
+    function test_executeSlash_sweepsQueuedWithdrawal() public {
+        _deposit(); // 2 * MIN_STAKE
+
+        vm.prank(operator);
+        staking.initiateWithdrawal(didHash, MIN_STAKE);
+        // MIN_STAKE remains active, MIN_STAKE queued for withdrawal — both should be slashable.
+
+        vm.prank(committee);
+        staking.initiateSlash(didHash, victim, "evidence");
+        vm.warp(block.timestamp + CHALLENGE + 1);
+
+        uint256 slashable = MIN_STAKE * 2; // active + queued combined
+        staking.executeSlash(didHash);
+
+        assertEq(csig.balanceOf(address(0xdead)), slashable / 2);
+        assertEq(staking.getStake(didHash), 0);
+        (uint256 pendingAmount,) = staking.getPendingWithdrawal(didHash);
+        assertEq(pendingAmount, 0);
+
+        // Nothing left to claim — the withdrawal was swept, not just the active stake.
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigStaking.NoWithdrawalPending.selector, didHash)
+        );
+        vm.prank(operator);
+        staking.claimWithdrawal(didHash);
     }
 
     // -------------------------------------------------------------------------
@@ -261,13 +358,16 @@ contract CountersigStakingTest is Test {
     function test_disputeSlash_reverts_afterChallengePeriod() public {
         _deposit();
 
+        uint256 initiatedAt = block.timestamp;
         vm.prank(committee);
         staking.initiateSlash(didHash, victim, "");
 
         vm.warp(block.timestamp + CHALLENGE + 1);
 
-        // Period has ended; revert expected (wrong branch of the if).
-        vm.expectRevert();
+        uint256 deadline = initiatedAt + CHALLENGE;
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigStaking.ChallengePeriodExpired.selector, didHash, deadline)
+        );
         vm.prank(operator);
         staking.disputeSlash(didHash);
     }
@@ -327,18 +427,12 @@ contract CountersigStakingTest is Test {
     }
 
     function test_executeSlash_zerosReputation() public {
-        // Give the agent a score via oracle.
-        bytes32 oracleRole = rep.ORACLE_ROLE();
-        vm.prank(admin);
-        rep.grantRole(oracleRole, admin);
-
         CountersigReputation.ReputationData memory data = CountersigReputation.ReputationData({
             feeScore: 30, successScore: 25, ageScore: 20,
             externalScore: 15, communityScore: 5, propagationScore: 5,
             lastUpdated: 0
         });
-        vm.prank(admin);
-        rep.updateReputation(didHash, data);
+        _finalizeScore(didHash, data);
         assertEq(rep.getTotalScore(didHash), 100);
 
         _setupPendingSlash();
@@ -369,6 +463,22 @@ contract CountersigStakingTest is Test {
     }
 
     // -------------------------------------------------------------------------
+    // Admin
+    // -------------------------------------------------------------------------
+
+    function test_setUnbondingPeriod_success() public {
+        vm.prank(admin);
+        staking.setUnbondingPeriod(30 days);
+        assertEq(staking.unbondingPeriod(), 30 days);
+    }
+
+    function test_setUnbondingPeriod_reverts_notAdmin() public {
+        vm.expectRevert();
+        vm.prank(stranger);
+        staking.setUnbondingPeriod(30 days);
+    }
+
+    // -------------------------------------------------------------------------
     // Fuzz: stake roundtrip
     // -------------------------------------------------------------------------
 
@@ -386,10 +496,14 @@ contract CountersigStakingTest is Test {
         vm.prank(operator);
         identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Suspended);
 
-        uint256 before = csig.balanceOf(operator);
-
         vm.prank(operator);
-        staking.withdrawStake(didHash, amount);
+        staking.initiateWithdrawal(didHash, amount);
+
+        vm.warp(block.timestamp + UNBONDING + 1);
+
+        uint256 before = csig.balanceOf(operator);
+        vm.prank(operator);
+        staking.claimWithdrawal(didHash);
 
         assertEq(csig.balanceOf(operator), before + amount);
         assertEq(staking.getStake(didHash), 0);

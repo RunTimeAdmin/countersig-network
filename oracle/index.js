@@ -70,22 +70,28 @@ async function runEpochInner() {
   }
 
   console.log(`[oracle] ${agents.length} agent(s) found`);
-  let updated = 0;
+  let proposed = 0;
+  let finalized = 0;
+
+  const challengeWindow = await chain.getChallengeWindow();
 
   // Phase 1: reads are stateless — fire them concurrently instead of one at a time.
   const agentInfos = await Promise.all(
     agents.map(async ({ didHash }) => {
       try {
-        const info = await chain.getAgentInfo(didHash);
-        return { didHash, ...info, error: null };
+        const [info, pending] = await Promise.all([
+          chain.getAgentInfo(didHash),
+          chain.getPendingScore(didHash),
+        ]);
+        return { didHash, ...info, pending, error: null };
       } catch (err) {
-        return { didHash, registeredAt: 0, status: -1, error: err };
+        return { didHash, registeredAt: 0, status: -1, pending: null, error: err };
       }
     })
   );
 
   // Phase 2: writes share the oracle wallet's nonce, so they stay sequential.
-  for (const { didHash, registeredAt, status, error } of agentInfos) {
+  for (const { didHash, registeredAt, status, pending, error } of agentInfos) {
     if (error) {
       console.error(`[oracle]   ${didHash.slice(0, 10)}… error: ${error.message}`);
       continue;
@@ -97,19 +103,37 @@ async function runEpochInner() {
         continue;
       }
 
+      // A pending proposal always overwrites and restarts the challenge window, so
+      // re-proposing every epoch while one is still open would perpetually reset the
+      // clock and it would never finalize. Only propose fresh once nothing is pending
+      // (finalizing first if the current one has cleared its window) — otherwise skip
+      // this agent this epoch and let the existing proposal keep waiting.
+      const ready = pending.exists && (Date.now() / 1000 >= pending.proposedAt + challengeWindow);
+
+      if (pending.exists && !ready) {
+        console.log(`[oracle]   ${didHash.slice(0, 10)}… score still pending, waiting out challenge window`);
+        continue;
+      }
+
+      if (ready) {
+        const finalizeTx = await chain.finalizeScore(didHash);
+        console.log(`[oracle]   ${didHash.slice(0, 10)}… finalized tx=${finalizeTx.slice(0, 10)}…`);
+        finalized++;
+      }
+
       const att       = attestations.get(didHash) ?? { successful: 0, total: 0 };
       const flagCount = flags.get(didHash) ?? 0;
       const scores    = computeScore({ registeredAt, attestations: att, flags: flagCount });
-      const txHash    = await chain.writeReputation(didHash, scores);
+      const txHash    = await chain.proposeScore(didHash, scores);
 
-      console.log(`[oracle]   ${didHash.slice(0, 10)}… score=${scores.total}/100 tx=${txHash.slice(0, 10)}…`);
-      updated++;
+      console.log(`[oracle]   ${didHash.slice(0, 10)}… proposed score=${scores.total}/100 tx=${txHash.slice(0, 10)}…`);
+      proposed++;
     } catch (err) {
       console.error(`[oracle]   ${didHash.slice(0, 10)}… error: ${err.message}`);
     }
   }
 
-  console.log(`[oracle] epoch done — ${updated} updated in ${Date.now() - start}ms`);
+  console.log(`[oracle] epoch done — ${proposed} proposed, ${finalized} finalized in ${Date.now() - start}ms`);
 }
 
 // ---- HTTP API --------------------------------------------------------------

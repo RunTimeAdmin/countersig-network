@@ -10,7 +10,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * @notice Stores the 6-factor reputation score for each registered agent.
  *
  * All scoring computation happens off-chain in the oracle network. This contract
- * is a verified store: it accepts oracle-signed score updates and exposes them
+ * is a verified store: it accepts oracle-proposed score updates and exposes them
  * to on-chain consumers (e.g., agent-to-agent trust checks).
  *
  * Score factors and weights (total: 100):
@@ -20,17 +20,31 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  *   externalScore   — max 15 — SAID Protocol / Gitcoin Passport cross-platform score
  *   communityScore  — max  5 — flag-free community standing
  *   propagationScore — max 5 — inherited trust from high-reputation vouchers
+ *
+ * Optimistic scoring model:
+ *   - The oracle proposes a score via proposeReputation(). A challenge window opens.
+ *   - If unchallenged, anyone may call finalizeReputation() once the window elapses.
+ *   - During the window, SLASHING_COMMITTEE_ROLE may reject a bad proposal outright —
+ *     the committee's challenge is itself the ruling, mirroring how slash disputes
+ *     already work in CountersigStaking, rather than introducing a separate
+ *     propose-then-arbitrate step.
+ *   - A fresh proposal for the same agent replaces any still-pending one and restarts
+ *     the window; the previous pending proposal is simply abandoned.
  */
 contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUpgradeable {
     // -------------------------------------------------------------------------
     // Roles
     // -------------------------------------------------------------------------
 
-    /// Granted to the oracle consensus contract(s) authorized to write scores.
+    /// Granted to the oracle consensus contract(s) authorized to propose scores.
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
 
     /// Granted to the StakingCore so it can zero scores on slash.
     bytes32 public constant STAKING_CORE_ROLE = keccak256("STAKING_CORE_ROLE");
+
+    /// Same committee that resolves slash disputes in CountersigStaking — granted
+    /// here separately since each contract keeps its own independent role registry.
+    bytes32 public constant SLASHING_COMMITTEE_ROLE = keccak256("SLASHING_COMMITTEE_ROLE");
 
     /// Granted to admin/governance timelock for upgrades.
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
@@ -57,7 +71,13 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
         uint8 externalScore;     // max 15
         uint8 communityScore;    // max  5
         uint8 propagationScore;  // max  5
-        uint256 lastUpdated;     // block.timestamp of last oracle write
+        uint256 lastUpdated;     // block.timestamp of last finalized write
+    }
+
+    struct PendingScore {
+        ReputationData data;
+        uint256 proposedAt;
+        bool exists;
     }
 
     // -------------------------------------------------------------------------
@@ -65,19 +85,29 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
     // -------------------------------------------------------------------------
 
     mapping(bytes32 => ReputationData) public reputations;
+    mapping(bytes32 => PendingScore) public pendingScores;
+
+    /// Seconds a proposed score sits open to challenge before it can be finalized.
+    uint256 public challengeWindow;
 
     // -------------------------------------------------------------------------
     // Events
     // -------------------------------------------------------------------------
 
+    event ScoreProposed(bytes32 indexed didHash, uint256 proposedAt);
     event ReputationUpdated(bytes32 indexed didHash, uint8 totalScore, uint256 timestamp);
+    event ScoreRejected(bytes32 indexed didHash, address indexed committee);
     event ReputationZeroed(bytes32 indexed didHash);
+    event ChallengeWindowUpdated(uint256 newWindow);
 
     // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
 
     error ScoreOutOfRange(string factor, uint8 value, uint8 max);
+    error NoScorePending(bytes32 didHash);
+    error ChallengeWindowActive(bytes32 didHash, uint256 finalizableAt);
+    error ChallengeWindowExpired(bytes32 didHash, uint256 expiredAt);
 
     // -------------------------------------------------------------------------
     // Constructor / Initializer
@@ -89,12 +119,21 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
     }
 
     /**
-     * @param admin       DEFAULT_ADMIN_ROLE + UPGRADER_ROLE. Governance timelock on mainnet.
-     * @param oracle      Initial oracle address granted ORACLE_ROLE. Additional oracles
-     *                    can be granted via DEFAULT_ADMIN.
-     * @param stakingCore Granted STAKING_CORE_ROLE to zero scores on slash.
+     * @param admin           DEFAULT_ADMIN_ROLE + UPGRADER_ROLE. Governance timelock on mainnet.
+     * @param oracle          Initial oracle address granted ORACLE_ROLE. Additional oracles
+     *                        can be granted via DEFAULT_ADMIN.
+     * @param stakingCore     Granted STAKING_CORE_ROLE to zero scores on slash.
+     * @param slashingCommittee Granted SLASHING_COMMITTEE_ROLE to reject bad proposals.
+     * @param challengeWindow_ Seconds a proposed score can be challenged before finalizing
+     *                        (e.g. 3600 = 1 hour, 21600 = 6 hours).
      */
-    function initialize(address admin, address oracle, address stakingCore) external initializer {
+    function initialize(
+        address admin,
+        address oracle,
+        address stakingCore,
+        address slashingCommittee,
+        uint256 challengeWindow_
+    ) external initializer {
         __AccessControl_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
@@ -102,6 +141,9 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
 
         if (oracle != address(0)) _grantRole(ORACLE_ROLE, oracle);
         if (stakingCore != address(0)) _grantRole(STAKING_CORE_ROLE, stakingCore);
+        if (slashingCommittee != address(0)) _grantRole(SLASHING_COMMITTEE_ROLE, slashingCommittee);
+
+        challengeWindow = challengeWindow_;
     }
 
     // -------------------------------------------------------------------------
@@ -109,13 +151,12 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
     // -------------------------------------------------------------------------
 
     /**
-     * @notice Oracle writes a full score update for an agent.
-     * @dev    Validates each factor against its cap before writing. The oracle is
-     *         responsible for computing correct values; this is a sanity guard only.
-     *         Agents do not need to be registered in CountersigIdentity for a score
-     *         to be written — but in practice the oracle only scores registered agents.
+     * @notice Oracle proposes a score update for an agent. Opens a challenge window.
+     * @dev    Validates each factor against its cap before accepting. Replaces any
+     *         still-pending proposal for the same agent and restarts the window —
+     *         the newer proposal reflects fresher on-chain state.
      */
-    function updateReputation(bytes32 didHash, ReputationData calldata data)
+    function proposeReputation(bytes32 didHash, ReputationData calldata data)
         external
         onlyRole(ORACLE_ROLE)
     {
@@ -126,22 +167,56 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
         if (data.communityScore > MAX_COMMUNITY_SCORE)    revert ScoreOutOfRange("communityScore", data.communityScore, MAX_COMMUNITY_SCORE);
         if (data.propagationScore > MAX_PROPAGATION_SCORE) revert ScoreOutOfRange("propagationScore", data.propagationScore, MAX_PROPAGATION_SCORE);
 
-        reputations[didHash] = ReputationData({
-            feeScore: data.feeScore,
-            successScore: data.successScore,
-            ageScore: data.ageScore,
-            externalScore: data.externalScore,
-            communityScore: data.communityScore,
-            propagationScore: data.propagationScore,
-            lastUpdated: block.timestamp
+        pendingScores[didHash] = PendingScore({
+            data: data,
+            proposedAt: block.timestamp,
+            exists: true
         });
+
+        emit ScoreProposed(didHash, block.timestamp);
+    }
+
+    /**
+     * @notice Finalize a proposed score once its challenge window has elapsed unrejected.
+     * @dev    Permissionless — execution doesn't depend on any single party's liveness.
+     */
+    function finalizeReputation(bytes32 didHash) external {
+        PendingScore storage pending = pendingScores[didHash];
+        if (!pending.exists) revert NoScorePending(didHash);
+
+        uint256 finalizableAt = pending.proposedAt + challengeWindow;
+        if (block.timestamp < finalizableAt) revert ChallengeWindowActive(didHash, finalizableAt);
+
+        reputations[didHash] = pending.data;
+        reputations[didHash].lastUpdated = block.timestamp;
+        delete pendingScores[didHash];
 
         emit ReputationUpdated(didHash, getTotalScore(didHash), block.timestamp);
     }
 
     /**
+     * @notice Committee rejects a pending proposal during its challenge window.
+     * @dev    The committee's rejection is itself the ruling — no separate dispute
+     *         resolution step, mirroring how slash initiation works in CountersigStaking.
+     *         The agent's existing finalized score is untouched; only the pending
+     *         proposal is discarded.
+     */
+    function rejectReputation(bytes32 didHash) external onlyRole(SLASHING_COMMITTEE_ROLE) {
+        PendingScore storage pending = pendingScores[didHash];
+        if (!pending.exists) revert NoScorePending(didHash);
+
+        uint256 finalizableAt = pending.proposedAt + challengeWindow;
+        if (block.timestamp >= finalizableAt) revert ChallengeWindowExpired(didHash, finalizableAt);
+
+        delete pendingScores[didHash];
+
+        emit ScoreRejected(didHash, msg.sender);
+    }
+
+    /**
      * @notice Zero out an agent's score after a slash. Called by StakingCore.
      * @dev    Sets all scores to 0 but preserves lastUpdated so history is not lost.
+     *         Also clears any pending proposal — a slashed agent's score is terminal.
      */
     function zeroReputation(bytes32 didHash) external onlyRole(STAKING_CORE_ROLE) {
         reputations[didHash] = ReputationData({
@@ -153,8 +228,18 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
             propagationScore: 0,
             lastUpdated: block.timestamp
         });
+        delete pendingScores[didHash];
 
         emit ReputationZeroed(didHash);
+    }
+
+    // -------------------------------------------------------------------------
+    // Admin
+    // -------------------------------------------------------------------------
+
+    function setChallengeWindow(uint256 newWindow) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        challengeWindow = newWindow;
+        emit ChallengeWindowUpdated(newWindow);
     }
 
     // -------------------------------------------------------------------------
@@ -163,6 +248,10 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
 
     function getReputation(bytes32 didHash) external view returns (ReputationData memory) {
         return reputations[didHash];
+    }
+
+    function getPendingScore(bytes32 didHash) external view returns (PendingScore memory) {
+        return pendingScores[didHash];
     }
 
     /// @notice Returns the sum of all 6 factor scores. Max 100.
@@ -174,7 +263,7 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
             + uint16(rep.externalScore)
             + uint16(rep.communityScore)
             + uint16(rep.propagationScore);
-        // Each factor is validated at write time (updateReputation), so total <= 100.
+        // Each factor is validated at propose time, so total <= 100.
         assert(total <= 100);
         // forge-lint: disable-next-line(unsafe-typecast)
         return uint8(total);
