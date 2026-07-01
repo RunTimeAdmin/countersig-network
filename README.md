@@ -8,6 +8,14 @@ As AI agents become independent economic actors, the absence of verifiable Non-H
 >
 > What *is* real: the protocol below is live on Sepolia testnet, the [`@countersig/protocol-sdk`](https://www.npmjs.com/package/@countersig/protocol-sdk) is published on npm, and [CounterAudit](https://counteraudit.io) already consumes Countersig identity and reputation data in production — sealed into forensic audit packets on a live oracle. That's the actual substance behind this project; a copycat token has none of it.
 
+### This repo vs. the Countersig SaaS platform
+
+This repository (`countersig-network`) is the **decentralized protocol**: on-chain identity, reputation, and staking with no central authority. Trust here is enforced by cryptography and cryptoeconomics — nothing to sign up for, nothing to trust us on.
+
+There is a **separate product**, the Countersig SaaS platform (repo: [`RunTimeAdmin/Countersig`](https://github.com/RunTimeAdmin/Countersig)), which ships its own npm packages — `@countersig/sdk`, `@countersig/verify`, `@countersig/mcp`, `@countersig/react`. That platform is a centralized, hosted NHI verification service. It is a different product with a different trust model, built by the same team, but it is **not this protocol** and does not read from or write to the contracts below.
+
+If you're looking for MCP server support or React trust-badge components, those live in the SaaS repo, not here. If you're integrating with the on-chain protocol — DIDs, staked reputation, permissionless verification — you're in the right place, and `@countersig/protocol-sdk` is the only SDK for it.
+
 ## Documentation
 
 | Guide | Audience |
