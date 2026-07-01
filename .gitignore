@@ -28,3 +28,15 @@ Thumbs.db
 # Scan output
 reports/
 .scarpshield/
+
+# Brand assets — uploaded directly to the host, never committed.
+# Previous images were scraped from GitHub raw links and used for a scam token.
+site/assets/*.png
+site/assets/*.jpg
+site/assets/*.jpeg
+site/assets/*.gif
+site/assets/*.webp
+
+# Local zip archives / build scratch, not part of the deployed site
+site/*.zip
+site/countersig_network_v2/

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CounterAudit Integration — Countersig Network</title>
+  <meta name="description" content="Embed Countersig identity and reputation into CounterAudit sealed audit packets." />
+  <link rel="icon" type="image/png" href="/assets/logo.png" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+
+<div class="scam-banner">
+  <strong>No $CSIG token exists yet.</strong> No TGE, no public sale. Any token using our name or artwork is not affiliated with this project. <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub repo</a> is the only canonical source.
+</div>
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">countersig<span class="dot">.</span>network</a>
+    <ul class="nav-links">
+      <li><a href="/docs/quickstart.html">Quickstart</a></li>
+      <li><a href="/docs/reputation.html">Reputation</a></li>
+      <li><a href="/docs/counteraudit.html" class="active">CounterAudit</a></li>
+      <li><a href="/docs/ai-frameworks.html">AI Frameworks</a></li>
+      <li><a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a></li>
+      <li><a href="/docs/quickstart.html" class="nav-cta">Get Started</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="container">
+    <div class="docs-layout">
+
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-label">Getting Started</div>
+          <ul class="sidebar-links"><li><a href="/docs/quickstart.html">Quickstart</a></li></ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Protocol</div>
+          <ul class="sidebar-links">
+            <li><a href="/docs/reputation.html">Reputation Model</a></li>
+            <li><a href="/#contracts">Testnet Contracts</a></li>
+          </ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Integrations</div>
+          <ul class="sidebar-links">
+            <li><a href="/docs/counteraudit.html" class="active">CounterAudit</a></li>
+            <li><a href="/docs/ai-frameworks.html">AI Frameworks</a></li>
+          </ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Resources</div>
+          <ul class="sidebar-links">
+            <li><a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub →</a></li>
+          </ul>
+        </div>
+      </aside>
+
+      <main class="docs-content">
+        <div class="section-label">Integration</div>
+        <h2>CounterAudit Integration</h2>
+        <p>Adding Countersig identity to CounterAudit requires one field: <code>agent_did</code>. When CounterAudit receives an ingest call with a valid <code>agent_did</code>, it queries the live on-chain identity and reputation score and seals both inside the AES-GCM-encrypted, RFC 3161-timestamped packet. The reputation score is frozen at the moment of the action — it does not change retroactively even if the agent is later slashed.</p>
+
+        <div class="callout"><strong>Prerequisite:</strong> Your agent must be registered on Countersig before its DID can be resolved. Follow the <a href="/docs/quickstart.html">Quickstart</a> first.</div>
+
+        <h3>The Minimal Change</h3>
+        <p>If you are already using CounterAudit, add one field to your existing ingest payload:</p>
+        <pre><code><span class="cm">// Before</span>
+{ connector_id: <span class="str">'my-agent'</span>, raw_event: action }
+
+<span class="cm">// After — add agent_did</span>
+{ connector_id: <span class="str">'my-agent'</span>, agent_did: myAgent.did, raw_event: action }</code></pre>
+
+        <h3>TypeScript Example</h3>
+        <pre><code><span class="kw">import</span> { <span class="fn">CountersigAgent</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
+
+<span class="kw">const</span> myAgent = <span class="kw">new</span> <span class="fn">CountersigAgent</span>({
+  privateKey:   process.env.AGENT_ED25519_SEED,
+  agentAddress: process.env.AGENT_ADDRESS,
+  chainId:      <span class="num">11155111</span>,
+});
+
+<span class="kw">async function</span> <span class="fn">auditAction</span>(action: <span class="kw">object</span>) {
+  <span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.counteraudit.io/v1/audit/ingest'</span>, {
+    method: <span class="str">'POST'</span>,
+    headers: {
+      <span class="str">'Authorization'</span>: `Bearer ${process.env.CA_API_KEY}`,
+      <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>,
+    },
+    body: <span class="fn">JSON.stringify</span>({
+      connector_id: <span class="str">'my-agent'</span>,
+      agent_did:    myAgent.did,
+      raw_event:    action,
+    }),
+  });
+  <span class="kw">return</span> res.<span class="fn">json</span>();
+}</code></pre>
+
+        <h3>What Gets Sealed</h3>
+        <p>When CounterAudit receives an ingest call with a valid <code>agent_did</code>, it reads the following fields from the Countersig contracts at ingest time and embeds them inside the sealed packet:</p>
+        <div class="sealed-packet">
+          <span class="sp-key">"agent_did"</span>: <span class="sp-str">"did:countersig:11155111:0xbCB531B68A87F4BcC3a0394ccD2DB95C52bB4E08"</span>,<br />
+          <span class="sp-key">"agent_did_hash"</span>: <span class="sp-str">"0x2d657d1d166f5c7ed90bebc6808f50d07d7e70cba897d91e7f7d918629d4b0be"</span>,<br />
+          <span class="sp-key">"agent_chain_id"</span>: <span class="sp-num">11155111</span>,<br />
+          <span class="sp-key">"agent_reputation_score"</span>: <span class="sp-num">47</span>,<br />
+          <span class="sp-key">"agent_identity_status"</span>: <span class="sp-str">"Active"</span>,<br />
+          <span class="sp-key">"agent_identity_verified"</span>: <span class="sp-bool-t">true</span>,<br />
+          <span class="sp-key">"agent_enriched_at"</span>: <span class="sp-str">"2026-06-30T16:33:39.381Z"</span>
+          <div class="sp-lock">Sealed inside AES-256-GCM · covered by RFC 3161 timestamp · tamper-evident</div>
+        </div>
+
+        <h3>Verifying a Sealed Packet</h3>
+        <pre><code><span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(`https://api.counteraudit.io/v1/audit/verify/${packetId}`, {
+  headers: { <span class="str">'Authorization'</span>: `Bearer ${CA_API_KEY}` }
+});
+<span class="kw">const</span> { packet } = <span class="kw">await</span> res.<span class="fn">json</span>();
+
+<span class="cm">// Countersig fields are in the decrypted body</span>
+console.log(packet.agent_did);              <span class="cm">// did:countersig:11155111:0x...</span>
+console.log(packet.agent_reputation_score); <span class="cm">// Score at time of action</span>
+console.log(packet.agent_identity_status);  <span class="cm">// Active | Suspended | Slashed</span></code></pre>
+
+        <h3>Python Example</h3>
+        <pre><code>import requests
+
+def audit_action(agent_did: str, action: dict, ca_api_key: str):
+    return requests.post(
+        "https://api.counteraudit.io/v1/audit/ingest",
+        headers={
+            "Authorization": f"Bearer {ca_api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "connector_id": "my-agent",
+            "agent_did": agent_did,
+            "raw_event": action,
+        },
+    ).json()</code></pre>
+
+        <h3>Why the Sealed Packet Matters</h3>
+        <p>The reputation score is frozen at the moment of the action. If an agent is slashed next month, every audit record from before the slash still shows what their reputation was at the time. The historical record does not rewrite itself — the RFC 3161 timestamp and AES-GCM seal together guarantee it. This is the forensic property that makes Countersig-enriched audit records legally meaningful.</p>
+      </main>
+
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">
+      <a href="/" style="font-family:var(--font-mono);font-size:13px;color:var(--muted)">countersig.network</a> &nbsp;·&nbsp; MIT License
+    </div>
+    <div class="footer-links">
+      <a href="/docs/quickstart.html">Quickstart</a>
+      <a href="/docs/reputation.html">Reputation</a>
+      <a href="/docs/counteraudit.html">CounterAudit</a>
+      <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

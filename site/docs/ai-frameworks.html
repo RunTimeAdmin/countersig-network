@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Framework Integration — Countersig Network</title>
+  <meta name="description" content="Integrate Countersig identity with LangChain, AutoGen, CrewAI, and other AI agent frameworks." />
+  <link rel="icon" type="image/png" href="/assets/logo.png" />
+  <link rel="stylesheet" href="/assets/style.css" />
+  <style>
+    .fw-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .fw-tab { font-size: 12px; font-family: var(--font-mono); padding: 5px 14px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); color: var(--muted); cursor: pointer; transition: all 0.15s; }
+    .fw-tab.active, .fw-tab:hover { color: var(--accent); border-color: rgba(79,142,247,0.4); background: rgba(79,142,247,0.07); }
+    .fw-pane { display: none; }
+    .fw-pane.active { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="scam-banner">
+  <strong>No $CSIG token exists yet.</strong> No TGE, no public sale. Any token using our name or artwork is not affiliated with this project. <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub repo</a> is the only canonical source.
+</div>
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">countersig<span class="dot">.</span>network</a>
+    <ul class="nav-links">
+      <li><a href="/docs/quickstart.html">Quickstart</a></li>
+      <li><a href="/docs/reputation.html">Reputation</a></li>
+      <li><a href="/docs/counteraudit.html">CounterAudit</a></li>
+      <li><a href="/docs/ai-frameworks.html" class="active">AI Frameworks</a></li>
+      <li><a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a></li>
+      <li><a href="/docs/quickstart.html" class="nav-cta">Get Started</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="container">
+    <div class="docs-layout">
+
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-label">Getting Started</div>
+          <ul class="sidebar-links"><li><a href="/docs/quickstart.html">Quickstart</a></li></ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Protocol</div>
+          <ul class="sidebar-links">
+            <li><a href="/docs/reputation.html">Reputation Model</a></li>
+            <li><a href="/#contracts">Testnet Contracts</a></li>
+          </ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Integrations</div>
+          <ul class="sidebar-links">
+            <li><a href="/docs/counteraudit.html">CounterAudit</a></li>
+            <li><a href="/docs/ai-frameworks.html" class="active">AI Frameworks</a></li>
+          </ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Resources</div>
+          <ul class="sidebar-links">
+            <li><a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub →</a></li>
+          </ul>
+        </div>
+      </aside>
+
+      <main class="docs-content">
+        <div class="section-label">Integration</div>
+        <h2>AI Framework Integration</h2>
+        <p>The pattern is the same in every framework: generate a Countersig DID at agent startup, then include it in every CounterAudit ingest call. The DID travels with the agent's actions, creating a cryptographically-linked audit trail tied to an on-chain identity.</p>
+
+        <div class="callout"><strong>Prerequisite:</strong> Your agent must be registered on Countersig. Follow the <a href="/docs/quickstart.html">Quickstart</a> first, then set <code>AGENT_DID</code> in your environment.</div>
+
+        <h3>Framework Examples</h3>
+
+        <div class="fw-tabs">
+          <div class="fw-tab active" onclick="showFw('langchain', this)">LangChain</div>
+          <div class="fw-tab" onclick="showFw('autogen', this)">AutoGen</div>
+          <div class="fw-tab" onclick="showFw('crewai', this)">CrewAI</div>
+          <div class="fw-tab" onclick="showFw('generic', this)">Generic Node.js</div>
+        </div>
+
+        <div id="fw-langchain" class="fw-pane active">
+          <pre><code><span class="kw">import</span> { <span class="fn">Tool</span> } <span class="kw">from</span> <span class="str">'langchain/tools'</span>;
+<span class="kw">import</span> { <span class="fn">CountersigAgent</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
+
+<span class="kw">const</span> csAgent = <span class="kw">new</span> <span class="fn">CountersigAgent</span>({
+  privateKey:   process.env.AGENT_ED25519_SEED,
+  agentAddress: process.env.AGENT_ADDRESS,
+  chainId:      <span class="num">11155111</span>,
+});
+
+<span class="cm">// Wrap any LangChain tool to add Countersig auditing</span>
+<span class="kw">function</span> <span class="fn">withCountersig</span>(tool: Tool): Tool {
+  <span class="kw">const</span> originalCall = tool.call.bind(tool);
+  tool.call = <span class="kw">async</span> (input: <span class="kw">string</span>) => {
+    <span class="kw">const</span> result = <span class="kw">await</span> <span class="fn">originalCall</span>(input);
+    <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.counteraudit.io/v1/audit/ingest'</span>, {
+      method: <span class="str">'POST'</span>,
+      headers: { <span class="str">'Authorization'</span>: `Bearer ${process.env.CA_API_KEY}`, <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+      body: <span class="fn">JSON.stringify</span>({
+        connector_id: <span class="str">'langchain-agent'</span>,
+        agent_did:    csAgent.did,
+        raw_event:    { tool: tool.name, input, output: result },
+      }),
+    });
+    <span class="kw">return</span> result;
+  };
+  <span class="kw">return</span> tool;
+}</code></pre>
+        </div>
+
+        <div id="fw-autogen" class="fw-pane">
+          <pre><code>import autogen
+import requests, os
+
+AGENT_DID = os.environ["AGENT_DID"]
+CA_API_KEY = os.environ["CA_API_KEY"]
+
+def audit(action_type: str, content: str):
+    requests.post(
+        "https://api.counteraudit.io/v1/audit/ingest",
+        headers={"Authorization": f"Bearer {CA_API_KEY}", "Content-Type": "application/json"},
+        json={
+            "connector_id": "autogen-agent",
+            "agent_did": AGENT_DID,
+            "raw_event": {"type": action_type, "content": content},
+        },
+    )
+
+class AuditedAssistant(autogen.AssistantAgent):
+    def generate_reply(self, messages=None, sender=None, **kwargs):
+        reply = super().generate_reply(messages=messages, sender=sender, **kwargs)
+        if reply:
+            audit("reply", str(reply))
+        return reply</code></pre>
+        </div>
+
+        <div id="fw-crewai" class="fw-pane">
+          <pre><code>from crewai import Agent, Task, Crew
+from crewai.tools import BaseTool
+import requests, os
+
+AGENT_DID = os.environ["AGENT_DID"]
+CA_API_KEY = os.environ["CA_API_KEY"]
+
+class AuditedTool(BaseTool):
+    name: str = "audited_tool"
+    description: str = "Runs a task and audits it with Countersig identity"
+
+    def _run(self, input_data: str) -> str:
+        result = f"Processed: {input_data}"
+        requests.post(
+            "https://api.counteraudit.io/v1/audit/ingest",
+            headers={"Authorization": f"Bearer {CA_API_KEY}"},
+            json={
+                "connector_id": "crewai-agent",
+                "agent_did": AGENT_DID,
+                "raw_event": {"tool": self.name, "input": input_data, "output": result},
+            },
+        )
+        return result</code></pre>
+        </div>
+
+        <div id="fw-generic" class="fw-pane">
+          <pre><code><span class="kw">import</span> { <span class="fn">CountersigAgent</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
+
+<span class="cm">// Initialize once at startup</span>
+<span class="kw">const</span> csAgent = <span class="kw">new</span> <span class="fn">CountersigAgent</span>({
+  privateKey:   process.env.AGENT_ED25519_SEED,
+  agentAddress: process.env.AGENT_ADDRESS,
+  chainId:      <span class="num">11155111</span>,
+});
+
+<span class="cm">// Call before or after any significant agent action</span>
+<span class="kw">async function</span> <span class="fn">auditAction</span>(eventType: <span class="kw">string</span>, payload: <span class="kw">object</span>) {
+  <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.counteraudit.io/v1/audit/ingest'</span>, {
+    method: <span class="str">'POST'</span>,
+    headers: {
+      <span class="str">'Authorization'</span>: `Bearer ${process.env.CA_API_KEY}`,
+      <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>,
+    },
+    body: <span class="fn">JSON.stringify</span>({
+      connector_id: <span class="str">'my-agent'</span>,
+      agent_did:    csAgent.did,
+      raw_event:    { type: eventType, ...payload },
+    }),
+  });
+}</code></pre>
+        </div>
+
+        <h3>The Universal Pattern</h3>
+        <p>Regardless of framework, the integration follows the same three steps:</p>
+        <ol style="color:var(--muted);font-size:15px;padding-left:20px;margin-bottom:24px">
+          <li style="margin-bottom:8px"><strong style="color:var(--text)">Initialize once at startup.</strong> Create a <code>CountersigAgent</code> instance from your stored Ed25519 seed and agent address.</li>
+          <li style="margin-bottom:8px"><strong style="color:var(--text)">Include the DID in every audit call.</strong> Pass <code>agent_did: csAgent.did</code> in every CounterAudit ingest payload.</li>
+          <li style="margin-bottom:8px"><strong style="color:var(--text)">Never include the private key in the payload.</strong> The DID is a public identifier. The private key is only used to sign challenges when a peer requests authentication.</li>
+        </ol>
+      </main>
+
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">
+      <a href="/" style="font-family:var(--font-mono);font-size:13px;color:var(--muted)">countersig.network</a> &nbsp;·&nbsp; MIT License
+    </div>
+    <div class="footer-links">
+      <a href="/docs/quickstart.html">Quickstart</a>
+      <a href="/docs/reputation.html">Reputation</a>
+      <a href="/docs/counteraudit.html">CounterAudit</a>
+      <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+function showFw(id, tab) {
+  document.querySelectorAll('.fw-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.fw-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('fw-' + id).classList.add('active');
+  tab.classList.add('active');
+}
+</script>
+
+</body>
+</html>

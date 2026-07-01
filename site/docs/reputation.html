@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reputation Model — Countersig Network</title>
+  <meta name="description" content="How the Countersig 6-factor reputation algorithm works, oracle epochs, and Sybil resistance." />
+  <link rel="icon" type="image/png" href="/assets/logo.png" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+
+<div class="scam-banner">
+  <strong>No $CSIG token exists yet.</strong> No TGE, no public sale. Any token using our name or artwork is not affiliated with this project. <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub repo</a> is the only canonical source.
+</div>
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">countersig<span class="dot">.</span>network</a>
+    <ul class="nav-links">
+      <li><a href="/docs/quickstart.html">Quickstart</a></li>
+      <li><a href="/docs/reputation.html" class="active">Reputation</a></li>
+      <li><a href="/docs/counteraudit.html">CounterAudit</a></li>
+      <li><a href="/docs/ai-frameworks.html">AI Frameworks</a></li>
+      <li><a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a></li>
+      <li><a href="/docs/quickstart.html" class="nav-cta">Get Started</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="container">
+    <div class="docs-layout">
+
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-label">Getting Started</div>
+          <ul class="sidebar-links">
+            <li><a href="/docs/quickstart.html">Quickstart</a></li>
+          </ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Protocol</div>
+          <ul class="sidebar-links">
+            <li><a href="/docs/reputation.html" class="active">Reputation Model</a></li>
+            <li><a href="/#contracts">Testnet Contracts</a></li>
+          </ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Integrations</div>
+          <ul class="sidebar-links">
+            <li><a href="/docs/counteraudit.html">CounterAudit</a></li>
+            <li><a href="/docs/ai-frameworks.html">AI Frameworks</a></li>
+          </ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Resources</div>
+          <ul class="sidebar-links">
+            <li><a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub →</a></li>
+          </ul>
+        </div>
+      </aside>
+
+      <main class="docs-content">
+        <div class="section-label">Protocol</div>
+        <h2>Reputation Model</h2>
+        <p>The Countersig reputation system computes a deterministic score from 0 to 100 using a 6-factor weighted algorithm. The oracle network computes scores off-chain every 24-hour epoch and writes the result to <code>CountersigReputation</code> on-chain. Any contract or application can read the score with a single view call.</p>
+
+        <h3>The 6 Factors</h3>
+        <div class="rep-factors" style="margin-bottom:32px">
+          <div class="rep-factor">
+            <div class="rep-bar-wrap">
+              <div class="rep-label">Fee Activity</div>
+              <div class="rep-bar"><div class="rep-bar-fill" style="width:30%"></div></div>
+            </div>
+            <span class="rep-pts">30 pts</span>
+          </div>
+          <div class="rep-factor">
+            <div class="rep-bar-wrap">
+              <div class="rep-label">Success Rate</div>
+              <div class="rep-bar"><div class="rep-bar-fill" style="width:25%"></div></div>
+            </div>
+            <span class="rep-pts">25 pts</span>
+          </div>
+          <div class="rep-factor">
+            <div class="rep-bar-wrap">
+              <div class="rep-label">Registration Age <span style="color:var(--muted);font-weight:400;font-size:12px">(logarithmic)</span></div>
+              <div class="rep-bar"><div class="rep-bar-fill" style="width:20%"></div></div>
+            </div>
+            <span class="rep-pts">20 pts</span>
+          </div>
+          <div class="rep-factor">
+            <div class="rep-bar-wrap">
+              <div class="rep-label">External Trust</div>
+              <div class="rep-bar"><div class="rep-bar-fill" style="width:15%"></div></div>
+            </div>
+            <span class="rep-pts">15 pts</span>
+          </div>
+          <div class="rep-factor">
+            <div class="rep-bar-wrap">
+              <div class="rep-label">Community Verification</div>
+              <div class="rep-bar"><div class="rep-bar-fill" style="width:5%"></div></div>
+            </div>
+            <span class="rep-pts">5 pts</span>
+          </div>
+          <div class="rep-factor">
+            <div class="rep-bar-wrap">
+              <div class="rep-label">Trust Propagation</div>
+              <div class="rep-bar"><div class="rep-bar-fill" style="width:5%"></div></div>
+            </div>
+            <span class="rep-pts">5 pts</span>
+          </div>
+        </div>
+
+        <table class="data-table" style="margin-bottom:32px">
+          <thead><tr><th>Factor</th><th>Max</th><th>Formula</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">feeScore</td><td>30</td><td style="color:var(--muted);font-size:13px"><code>min(30, floor(totalFeesUSD / 100))</code></td></tr>
+            <tr><td class="mono">successScore</td><td>25</td><td style="color:var(--muted);font-size:13px"><code>floor((successful / total) × 25)</code></td></tr>
+            <tr><td class="mono">ageScore</td><td>20</td><td style="color:var(--muted);font-size:13px"><code>min(20, floor(log₂(days + 1) × 4))</code> — reaches 20 at day 31</td></tr>
+            <tr><td class="mono">externalScore</td><td>15</td><td style="color:var(--muted);font-size:13px"><code>floor((externalRaw / 100) × 15)</code> — SAID Protocol / Gitcoin Passport</td></tr>
+            <tr><td class="mono">communityScore</td><td>5</td><td style="color:var(--muted);font-size:13px"><code>max(0, 5 − flags × 2)</code></td></tr>
+            <tr><td class="mono">propagationScore</td><td>5</td><td style="color:var(--muted);font-size:13px"><code>floor((avgVoucherScore / 100) × 5)</code></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Sybil Resistance</h3>
+        <p>The algorithm is designed so that creating fake identities to farm reputation is economically irrational. A brand-new agent cannot score above 5 (community baseline) without sustained economic activity over time. The logarithmic age formula front-loads rewards for early legitimate registrations while making rapid score accumulation impossible for freshly created Sybil identities.</p>
+
+        <h3>Oracle Epochs</h3>
+        <p>The oracle network runs on a 24-hour epoch cycle. At the end of each epoch, the oracle aggregates on-chain signals for every active agent, computes the 6-factor scores, and calls <code>updateReputation(didHash, ReputationData)</code> on the <code>CountersigReputation</code> contract. The contract validates that each factor is within its cap before writing.</p>
+
+        <h3>Reading a Score On-Chain</h3>
+        <pre><code><span class="cm">// Solidity — gate a function on minimum reputation</span>
+<span class="kw">interface</span> <span class="fn">ICountersigReputation</span> {
+  <span class="kw">function</span> <span class="fn">meetsThreshold</span>(<span class="kw">bytes32</span> didHash, <span class="kw">uint8</span> threshold) <span class="kw">external view returns</span> (<span class="kw">bool</span>);
+  <span class="kw">function</span> <span class="fn">getTotalScore</span>(<span class="kw">bytes32</span> didHash) <span class="kw">external view returns</span> (<span class="kw">uint8</span>);
+}
+
+<span class="kw">contract</span> <span class="fn">TrustedAgentGate</span> {
+  <span class="fn">ICountersigReputation</span> <span class="kw">public</span> reputation;
+  <span class="kw">uint8 public</span> minScore = <span class="num">60</span>;
+
+  <span class="kw">modifier</span> <span class="fn">onlyTrustedAgent</span>(<span class="kw">bytes32</span> agentDidHash) {
+    <span class="kw">require</span>(reputation.<span class="fn">meetsThreshold</span>(agentDidHash, minScore), <span class="str">"Insufficient reputation"</span>);
+    _;
+  }
+}</code></pre>
+
+        <h3>Reading a Score via SDK</h3>
+        <pre><code><span class="kw">const</span> verifier = <span class="kw">new</span> <span class="fn">CountersigVerifier</span>({ rpcUrl, addresses, chainId: <span class="num">11155111</span> });
+
+<span class="cm">// Get full breakdown</span>
+<span class="kw">const</span> rep = <span class="kw">await</span> verifier.<span class="fn">getReputation</span>(agentDid);
+console.log(rep.total);          <span class="cm">// 0–100</span>
+console.log(rep.feeScore);       <span class="cm">// 0–30</span>
+console.log(rep.ageScore);       <span class="cm">// 0–20</span>
+
+<span class="cm">// Simple threshold check (no gas)</span>
+<span class="kw">const</span> trusted = <span class="kw">await</span> verifier.<span class="fn">meetsThreshold</span>(agentDid, <span class="num">60</span>);</code></pre>
+
+        <h3>Score Trust Tiers</h3>
+        <table class="data-table">
+          <thead><tr><th>Score Range</th><th>Label</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>80–100</td><td><span class="tag tag-green">HIGH</span></td><td style="color:var(--muted);font-size:13px">Established, trusted agent with sustained economic activity</td></tr>
+            <tr><td>60–79</td><td><span class="tag tag-blue">MEDIUM</span></td><td style="color:var(--muted);font-size:13px">Verified agent with moderate history</td></tr>
+            <tr><td>40–59</td><td><span class="tag tag-amber">LOW</span></td><td style="color:var(--muted);font-size:13px">New or limited activity agent</td></tr>
+            <tr><td>0–39</td><td><span class="tag tag-red">UNVERIFIED</span></td><td style="color:var(--muted);font-size:13px">Insufficient data, new registration, or flagged</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Slashing and Score Reset</h3>
+        <p>When an agent is slashed via <code>CountersigStaking.executeSlash()</code>, the staking contract calls <code>zeroReputation(didHash)</code> on the reputation contract. All six factor scores are set to zero. The agent's identity status is permanently set to <code>Slashed</code> — it cannot be reinstated or re-registered at the same address. Historical audit records sealed before the slash retain the reputation score at the time of the action; the slash does not rewrite history.</p>
+      </main>
+
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">
+      <a href="/" style="font-family:var(--font-mono);font-size:13px;color:var(--muted)">countersig.network</a> &nbsp;·&nbsp; MIT License
+    </div>
+    <div class="footer-links">
+      <a href="/docs/quickstart.html">Quickstart</a>
+      <a href="/docs/reputation.html">Reputation</a>
+      <a href="/docs/counteraudit.html">CounterAudit</a>
+      <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

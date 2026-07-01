@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quickstart — Countersig Network</title>
+  <meta name="description" content="Register your first AI agent on Countersig Network in 10 minutes. Step-by-step guide for Sepolia testnet." />
+  <link rel="icon" type="image/png" href="/assets/logo.png" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+
+<div class="scam-banner">
+  <strong>No $CSIG token exists yet.</strong> No TGE, no public sale. Any token using our name or artwork is not affiliated with this project. <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub repo</a> is the only canonical source.
+</div>
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">countersig<span class="dot">.</span>network</a>
+    <ul class="nav-links">
+      <li><a href="/docs/quickstart.html" class="active">Quickstart</a></li>
+      <li><a href="/docs/reputation.html">Reputation</a></li>
+      <li><a href="/docs/counteraudit.html">CounterAudit</a></li>
+      <li><a href="/docs/ai-frameworks.html">AI Frameworks</a></li>
+      <li><a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a></li>
+      <li><a href="/docs/quickstart.html" class="nav-cta">Get Started</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="container">
+    <div class="docs-layout">
+
+      <!-- Sidebar -->
+      <aside class="docs-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-label">Getting Started</div>
+          <ul class="sidebar-links">
+            <li><a href="/docs/quickstart.html" class="active">Quickstart</a></li>
+          </ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Protocol</div>
+          <ul class="sidebar-links">
+            <li><a href="/docs/reputation.html">Reputation Model</a></li>
+            <li><a href="/#contracts">Testnet Contracts</a></li>
+          </ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Integrations</div>
+          <ul class="sidebar-links">
+            <li><a href="/docs/counteraudit.html">CounterAudit</a></li>
+            <li><a href="/docs/ai-frameworks.html">AI Frameworks</a></li>
+          </ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Resources</div>
+          <ul class="sidebar-links">
+            <li><a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub →</a></li>
+            <li><a href="https://www.npmjs.com/package/@countersig/protocol-sdk" target="_blank" rel="noopener">npm →</a></li>
+          </ul>
+        </div>
+      </aside>
+
+      <!-- Content -->
+      <main class="docs-content">
+        <div class="section-label">Getting Started</div>
+        <h2>Quickstart</h2>
+        <p>From zero to a registered, reputation-tracked AI agent on Sepolia in about 10 minutes. You need Node.js 18+, a wallet with Sepolia ETH, and an Alchemy or Infura RPC URL.</p>
+
+        <div class="callout"><strong>Testnet only.</strong> These instructions target Sepolia (chain ID 11155111). Mainnet deployment is planned for Q1 2027.</div>
+
+        <div class="qs-step">
+          <div class="qs-header"><div class="qs-num">1</div><h3>Install the SDK</h3></div>
+          <div class="qs-body">
+            <pre><code>npm install @countersig/protocol-sdk ethers</code></pre>
+          </div>
+        </div>
+
+        <div class="qs-step">
+          <div class="qs-header"><div class="qs-num">2</div><h3>Get testnet $CSIG</h3></div>
+          <div class="qs-body">
+            <p>Call the public faucet on CSIGToken once per wallet (24-hour cooldown).</p>
+            <pre><code><span class="kw">import</span> { ethers } <span class="kw">from</span> <span class="str">'ethers'</span>;
+
+<span class="kw">const</span> provider = <span class="kw">new</span> ethers.<span class="fn">JsonRpcProvider</span>(process.env.RPC_URL);
+<span class="kw">const</span> signer   = <span class="kw">new</span> ethers.<span class="fn">Wallet</span>(process.env.OPERATOR_PRIVATE_KEY, provider);
+<span class="kw">const</span> csig     = <span class="kw">new</span> ethers.<span class="fn">Contract</span>(
+  <span class="str">'0x6d5E311e821c3e279dBe9833F8e33828f7716FA8'</span>,
+  [<span class="str">'function faucet() external'</span>],
+  signer
+);
+<span class="kw">await</span> csig.<span class="fn">faucet</span>(); <span class="cm">// Mints 1,000 CSIG to your wallet</span></code></pre>
+          </div>
+        </div>
+
+        <div class="qs-step">
+          <div class="qs-header"><div class="qs-num">3</div><h3>Generate an Ed25519 keypair</h3></div>
+          <div class="qs-body">
+            <p>Your agent's cryptographic identity. The public key is stored on-chain. Store the private key securely — it cannot be recovered.</p>
+            <pre><code><span class="kw">import</span> { <span class="fn">CountersigAgent</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
+
+<span class="kw">const</span> { agent, privateKey } = <span class="fn">CountersigAgent</span>.<span class="fn">generate</span>({
+  agentAddress: signer.address,
+  chainId:      <span class="num">11155111</span>,
+});
+
+console.log(agent.did);
+<span class="cm">// → did:countersig:11155111:0xYourAddress</span>
+
+<span class="cm">// Store privateKey in your secrets manager — never commit it.</span></code></pre>
+          </div>
+        </div>
+
+        <div class="qs-step">
+          <div class="qs-header"><div class="qs-num">4</div><h3>Approve and register on-chain</h3></div>
+          <div class="qs-body">
+            <p>Two transactions: approve the staking contract to spend CSIG, then register. The contract computes your <code>didHash</code> from your address and chain ID.</p>
+            <pre><code><span class="kw">import</span> { <span class="fn">registerAgent</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
+
+<span class="kw">const</span> IDENTITY_ADDRESS = <span class="str">'0xD738A4cBe525d214f86059A8328786f072D6fbe1'</span>;
+<span class="kw">const</span> STAKING_ADDRESS  = <span class="str">'0x60347640d46B55E7dafFA8F385bc55eE2D77ee85'</span>;
+<span class="kw">const</span> minStake = ethers.<span class="fn">parseEther</span>(<span class="str">'1000'</span>);
+
+<span class="kw">await</span> csig.<span class="fn">approve</span>(STAKING_ADDRESS, minStake);
+
+<span class="kw">const</span> { didHash, txHash } = <span class="kw">await</span> <span class="fn">registerAgent</span>(
+  signer, signer.address, agent.publicKeyBytes32,
+  IDENTITY_ADDRESS, STAKING_ADDRESS, minStake
+);
+console.log(<span class="str">'Registered:'</span>, `https://sepolia.etherscan.io/tx/${txHash}`);</code></pre>
+          </div>
+        </div>
+
+        <div class="qs-step">
+          <div class="qs-header"><div class="qs-num">5</div><h3>Verify registration and check score</h3></div>
+          <div class="qs-body">
+            <pre><code><span class="kw">import</span> { <span class="fn">CountersigVerifier</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
+
+<span class="kw">const</span> REPUTATION_ADDRESS = <span class="str">'0x0613C561C5003D7948Ea09dE2C1895965A5c3F27'</span>;
+
+<span class="kw">const</span> verifier = <span class="kw">new</span> <span class="fn">CountersigVerifier</span>({
+  rpcUrl:    process.env.RPC_URL,
+  addresses: { identity: IDENTITY_ADDRESS, reputation: REPUTATION_ADDRESS, staking: STAKING_ADDRESS },
+  chainId:   <span class="num">11155111</span>,
+});
+
+<span class="kw">const</span> identity = <span class="kw">await</span> verifier.<span class="fn">getIdentity</span>(agent.did);
+console.log(identity.status);   <span class="cm">// → Active</span>
+
+<span class="kw">const</span> score = <span class="kw">await</span> verifier.<span class="fn">getTotalScore</span>(agent.did);
+console.log(score);             <span class="cm">// → 5 (community baseline — grows with activity)</span></code></pre>
+          </div>
+        </div>
+
+        <div class="qs-step">
+          <div class="qs-header"><div class="qs-num">6</div><h3>Sign a challenge (A2A authentication)</h3></div>
+          <div class="qs-body">
+            <p>When a peer agent asks your agent to prove who it is, sign the challenge with your Ed25519 key.</p>
+            <pre><code><span class="kw">const</span> myAgent = <span class="kw">new</span> <span class="fn">CountersigAgent</span>({
+  privateKey:   process.env.AGENT_ED25519_SEED,
+  agentAddress: signer.address,
+  chainId:      <span class="num">11155111</span>,
+});
+
+<span class="cm">// Peer issues a challenge → your agent signs it</span>
+<span class="kw">const</span> signature = myAgent.<span class="fn">signChallenge</span>(challenge.payload);
+
+<span class="cm">// Peer verifies: signature + on-chain pubkey + reputation threshold</span>
+<span class="kw">const</span> valid   = <span class="kw">await</span> verifier.<span class="fn">verifySignature</span>(myAgent.did, challenge.payload, signature);
+<span class="kw">const</span> trusted = <span class="kw">await</span> verifier.<span class="fn">meetsThreshold</span>(myAgent.did, <span class="num">60</span>);</code></pre>
+          </div>
+        </div>
+
+        <div class="qs-step">
+          <div class="qs-header"><div class="qs-num">7</div><h3>Audit every action with your DID</h3></div>
+          <div class="qs-body">
+            <p>Pass <code>agent_did</code> in each CounterAudit ingest call. Your on-chain identity and live reputation score are sealed into every packet.</p>
+            <pre><code><span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.counteraudit.io/v1/audit/ingest'</span>, {
+  method: <span class="str">'POST'</span>,
+  headers: {
+    <span class="str">'Authorization'</span>: `Bearer ${CA_API_KEY}`,
+    <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>,
+  },
+  body: <span class="fn">JSON.stringify</span>({
+    connector_id: <span class="str">'my-agent'</span>,
+    agent_did:    myAgent.did,
+    raw_event:    { action: <span class="str">'tool_call'</span>, tool: <span class="str">'web_search'</span>, query: <span class="str">'...'</span> },
+  }),
+});</code></pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:48px">Next steps</h3>
+        <p>Now that your agent is registered, explore the rest of the documentation:</p>
+        <div class="card-grid" style="margin-top:16px">
+          <a href="/docs/reputation.html" class="card" style="display:block; text-decoration:none;">
+            <div style="font-size:13px; color:var(--accent2); font-family:var(--font-mono); margin-bottom:8px">REPUTATION</div>
+            <h3 style="margin-bottom:6px">How scores are calculated</h3>
+            <p style="font-size:13px; color:var(--muted); margin:0">The 6-factor algorithm, oracle epochs, and Sybil resistance.</p>
+          </a>
+          <a href="/docs/counteraudit.html" class="card" style="display:block; text-decoration:none;">
+            <div style="font-size:13px; color:var(--accent2); font-family:var(--font-mono); margin-bottom:8px">COUNTERAUDIT</div>
+            <h3 style="margin-bottom:6px">Seal identity into audit records</h3>
+            <p style="font-size:13px; color:var(--muted); margin:0">Full integration guide with TypeScript, Python, and curl examples.</p>
+          </a>
+        </div>
+      </main>
+
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">
+      <a href="/" style="font-family:var(--font-mono);font-size:13px;color:var(--muted)">countersig.network</a> &nbsp;·&nbsp; MIT License
+    </div>
+    <div class="footer-links">
+      <a href="/docs/quickstart.html">Quickstart</a>
+      <a href="/docs/reputation.html">Reputation</a>
+      <a href="/docs/counteraudit.html">CounterAudit</a>
+      <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
