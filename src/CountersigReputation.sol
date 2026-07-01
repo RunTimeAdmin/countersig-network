@@ -36,6 +36,17 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     // -------------------------------------------------------------------------
+    // Score caps (sum to 100)
+    // -------------------------------------------------------------------------
+
+    uint8 public constant MAX_FEE_SCORE = 30;
+    uint8 public constant MAX_SUCCESS_SCORE = 25;
+    uint8 public constant MAX_AGE_SCORE = 20;
+    uint8 public constant MAX_EXTERNAL_SCORE = 15;
+    uint8 public constant MAX_COMMUNITY_SCORE = 5;
+    uint8 public constant MAX_PROPAGATION_SCORE = 5;
+
+    // -------------------------------------------------------------------------
     // Types
     // -------------------------------------------------------------------------
 
@@ -108,12 +119,12 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
         external
         onlyRole(ORACLE_ROLE)
     {
-        if (data.feeScore > 30)        revert ScoreOutOfRange("feeScore", data.feeScore, 30);
-        if (data.successScore > 25)    revert ScoreOutOfRange("successScore", data.successScore, 25);
-        if (data.ageScore > 20)        revert ScoreOutOfRange("ageScore", data.ageScore, 20);
-        if (data.externalScore > 15)   revert ScoreOutOfRange("externalScore", data.externalScore, 15);
-        if (data.communityScore > 5)   revert ScoreOutOfRange("communityScore", data.communityScore, 5);
-        if (data.propagationScore > 5) revert ScoreOutOfRange("propagationScore", data.propagationScore, 5);
+        if (data.feeScore > MAX_FEE_SCORE)               revert ScoreOutOfRange("feeScore", data.feeScore, MAX_FEE_SCORE);
+        if (data.successScore > MAX_SUCCESS_SCORE)        revert ScoreOutOfRange("successScore", data.successScore, MAX_SUCCESS_SCORE);
+        if (data.ageScore > MAX_AGE_SCORE)                revert ScoreOutOfRange("ageScore", data.ageScore, MAX_AGE_SCORE);
+        if (data.externalScore > MAX_EXTERNAL_SCORE)      revert ScoreOutOfRange("externalScore", data.externalScore, MAX_EXTERNAL_SCORE);
+        if (data.communityScore > MAX_COMMUNITY_SCORE)    revert ScoreOutOfRange("communityScore", data.communityScore, MAX_COMMUNITY_SCORE);
+        if (data.propagationScore > MAX_PROPAGATION_SCORE) revert ScoreOutOfRange("propagationScore", data.propagationScore, MAX_PROPAGATION_SCORE);
 
         reputations[didHash] = ReputationData({
             feeScore: data.feeScore,
@@ -133,14 +144,15 @@ contract CountersigReputation is Initializable, AccessControlUpgradeable, UUPSUp
      * @dev    Sets all scores to 0 but preserves lastUpdated so history is not lost.
      */
     function zeroReputation(bytes32 didHash) external onlyRole(STAKING_CORE_ROLE) {
-        ReputationData storage rep = reputations[didHash];
-        rep.feeScore = 0;
-        rep.successScore = 0;
-        rep.ageScore = 0;
-        rep.externalScore = 0;
-        rep.communityScore = 0;
-        rep.propagationScore = 0;
-        rep.lastUpdated = block.timestamp;
+        reputations[didHash] = ReputationData({
+            feeScore: 0,
+            successScore: 0,
+            ageScore: 0,
+            externalScore: 0,
+            communityScore: 0,
+            propagationScore: 0,
+            lastUpdated: block.timestamp
+        });
 
         emit ReputationZeroed(didHash);
     }

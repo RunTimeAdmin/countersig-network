@@ -98,6 +98,7 @@ contract CountersigStaking is
     error SlashAlreadyPending(bytes32 didHash);
     error NoActivePendingSlash(bytes32 didHash);
     error ChallengePeriodActive(bytes32 didHash, uint256 unlocksAt);
+    error ChallengePeriodExpired(bytes32 didHash, uint256 expiredAt);
     error NotOperator(bytes32 didHash, address caller);
     error ZeroAddress();
 
@@ -152,9 +153,10 @@ contract CountersigStaking is
      *         verifies active status. Additional deposits accumulate on existing stakes.
      */
     function depositStake(bytes32 didHash, uint256 amount) external nonReentrant {
-        if (!identityRegistry.isActive(didHash)) revert AgentNotActive(didHash);
-
         CountersigIdentity.AgentIdentity memory id = identityRegistry.getIdentity(didHash);
+        if (id.registeredAt == 0 || id.status != CountersigIdentity.AgentStatus.Active) {
+            revert AgentNotActive(didHash);
+        }
         if (id.operator != msg.sender) revert NotOperator(didHash, msg.sender);
 
         csigToken.safeTransferFrom(msg.sender, address(this), amount);
@@ -182,7 +184,8 @@ contract CountersigStaking is
 
         uint256 remaining = s.amount - amount;
         // If agent is still active, enforce minimum stake post-withdrawal.
-        if (identityRegistry.isActive(didHash) && remaining < minimumStake && remaining != 0) {
+        bool active = id.registeredAt != 0 && id.status == CountersigIdentity.AgentStatus.Active;
+        if (active && remaining < minimumStake && remaining != 0) {
             revert InsufficientStake(didHash, remaining, minimumStake);
         }
 
@@ -206,7 +209,7 @@ contract CountersigStaking is
         bytes32 didHash,
         address victim,
         bytes calldata evidenceHash
-    ) external onlyRole(SLASHING_COMMITTEE_ROLE) {
+    ) external nonReentrant onlyRole(SLASHING_COMMITTEE_ROLE) {
         if (victim == address(0)) revert ZeroAddress();
         if (stakes[didHash].amount == 0) revert NoStake(didHash);
         if (slashProposals[didHash].state == SlashState.Pending) revert SlashAlreadyPending(didHash);
@@ -234,13 +237,13 @@ contract CountersigStaking is
      *         permanently block slashing. A governance dispute resolution path is
      *         planned for mainnet.
      */
-    function disputeSlash(bytes32 didHash) external {
+    function disputeSlash(bytes32 didHash) external nonReentrant {
         SlashProposal storage proposal = slashProposals[didHash];
         if (proposal.state != SlashState.Pending) revert NoActivePendingSlash(didHash);
 
         uint256 deadline = proposal.initiatedAt + challengePeriod;
         if (block.timestamp > deadline) {
-            revert ChallengePeriodActive(didHash, 0); // period has ended, can no longer dispute
+            revert ChallengePeriodExpired(didHash, deadline);
         }
 
         CountersigIdentity.AgentIdentity memory id = identityRegistry.getIdentity(didHash);

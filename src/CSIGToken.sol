@@ -11,6 +11,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 contract CSIGToken is ERC20, Ownable {
     uint256 public constant FAUCET_CAP = 10_000e18;
+    uint256 public constant FAUCET_COOLDOWN = 1 days;
+
+    mapping(address => uint256) public lastFaucetUse;
+
+    error FaucetCooldownActive(address caller, uint256 availableAt);
 
     constructor(address owner) ERC20("Countersig", "CSIG") Ownable(owner) {}
 
@@ -18,9 +23,15 @@ contract CSIGToken is ERC20, Ownable {
         _mint(to, amount);
     }
 
-    // Permissionless testnet faucet — capped to prevent griefing.
+    // Permissionless testnet faucet — capped per call and rate-limited per address
+    // to prevent unbounded token inflation from repeated calls.
     function faucet(uint256 amount) external {
         if (amount > FAUCET_CAP) revert("CSIGToken: max 10,000 CSIG per call");
+
+        uint256 availableAt = lastFaucetUse[msg.sender] + FAUCET_COOLDOWN;
+        if (block.timestamp < availableAt) revert FaucetCooldownActive(msg.sender, availableAt);
+
+        lastFaucetUse[msg.sender] = block.timestamp;
         _mint(msg.sender, amount);
     }
 }
