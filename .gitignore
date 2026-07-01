@@ -20,6 +20,7 @@ oracle/node_modules/
 # IDE
 .vscode/
 .idea/
+.claude/
 
 # OS
 .DS_Store
@@ -40,3 +41,10 @@ site/assets/*.webp
 # Local zip archives / build scratch, not part of the deployed site
 site/*.zip
 site/countersig_network_v2/
+
+# Wiki generator scratch — pushed directly to the GitHub wiki repo, not tracked here
+repowiki/
+.qoder/
+
+# Local session artifacts
+CODE_REVIEW_REPORT.md
