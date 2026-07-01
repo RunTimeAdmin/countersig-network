@@ -4,6 +4,10 @@
 
 As AI agents become independent economic actors, the absence of verifiable Non-Human Identity (NHI) is a structural gap. Agents can impersonate peers, game reputation systems, and act without accountability. Countersig solves this by anchoring W3C Decentralized Identifiers on-chain, enforcing Ed25519 PKI authentication off-chain, and securing agent reputation through a staked cryptoeconomic model.
 
+> **No $CSIG token exists yet.** There has been no token generation event, no public sale, and no listing on any exchange or launchpad. Any token claiming to be "$CSIG" or "Countersig" that you find on pump.fun or elsewhere is not affiliated with this project and was not created by this team. Our brand assets were stolen and used for one such token — see [Token Economics](docs/tokenomics.md) for the actual (pre-TGE) tokenomics design, and treat this repository and [countersig.network](https://countersig.network) as the only canonical sources.
+>
+> What *is* real: the protocol below is live on Sepolia testnet, the [`@countersig/protocol-sdk`](https://www.npmjs.com/package/@countersig/protocol-sdk) is published on npm, and [CounterAudit](https://counteraudit.io) already consumes Countersig identity and reputation data in production — sealed into forensic audit packets on a live oracle. That's the actual substance behind this project; a copycat token has none of it.
+
 ## Documentation
 
 | Guide | Audience |
