@@ -63,14 +63,10 @@ export function isChallengeExpired(payload: string, maxAgeSeconds = DEFAULT_TTL)
 }
 
 function randomHex(bytes: number): string {
-  const arr = new Uint8Array(bytes);
-  if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.getRandomValues) {
-    globalThis.crypto.getRandomValues(arr);
-  } else {
-    // Node.js fallback for environments without a global crypto object
-    const buf = randomBytes(bytes);
-    buf.copy(Buffer.from(arr.buffer));
-  }
+  const arr: Uint8Array =
+    typeof globalThis.crypto !== 'undefined' && globalThis.crypto.getRandomValues
+      ? globalThis.crypto.getRandomValues(new Uint8Array(bytes))
+      : randomBytes(bytes); // Node.js fallback for environments without a global crypto object
   return Array.from(arr)
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');

@@ -17,6 +17,11 @@ export class CountersigVerifier {
   private readonly addresses: ContractAddresses;
   private _chainId: number | undefined;
 
+  // Cached lazily — avoids re-parsing the ABI on every call.
+  private _identity?: ethers.Contract;
+  private _reputation?: ethers.Contract;
+  private _staking?: ethers.Contract;
+
   constructor(config: VerifierConfig) {
     this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
     this.addresses = config.addresses;
@@ -24,15 +29,15 @@ export class CountersigVerifier {
   }
 
   private identity() {
-    return new ethers.Contract(this.addresses.identity, IDENTITY_ABI, this.provider);
+    return (this._identity ??= new ethers.Contract(this.addresses.identity, IDENTITY_ABI, this.provider));
   }
 
   private reputation() {
-    return new ethers.Contract(this.addresses.reputation, REPUTATION_ABI, this.provider);
+    return (this._reputation ??= new ethers.Contract(this.addresses.reputation, REPUTATION_ABI, this.provider));
   }
 
   private staking() {
-    return new ethers.Contract(this.addresses.staking, STAKING_ABI, this.provider);
+    return (this._staking ??= new ethers.Contract(this.addresses.staking, STAKING_ABI, this.provider));
   }
 
   private async chainId(): Promise<number> {

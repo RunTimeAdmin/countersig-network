@@ -38,7 +38,26 @@ const flags = new Map();
 
 // ---- Epoch -----------------------------------------------------------------
 
+// Guards against overlapping epochs from the setInterval tick and the manual
+// /epoch endpoint firing at the same time, which would submit tx's with colliding
+// nonces from the shared oracle wallet.
+let epochRunning = false;
+
 async function runEpoch() {
+  if (epochRunning) {
+    console.log('[oracle] epoch already running, skipping this trigger');
+    return;
+  }
+  epochRunning = true;
+
+  try {
+    await runEpochInner();
+  } finally {
+    epochRunning = false;
+  }
+}
+
+async function runEpochInner() {
   const start = Date.now();
   console.log(`[oracle] epoch start — ${new Date().toISOString()}`);
 
@@ -53,12 +72,30 @@ async function runEpoch() {
   console.log(`[oracle] ${agents.length} agent(s) found`);
   let updated = 0;
 
-  for (const { didHash } of agents) {
-    try {
-      const { registeredAt, status } = await chain.getAgentInfo(didHash);
+  // Phase 1: reads are stateless — fire them concurrently instead of one at a time.
+  const agentInfos = await Promise.all(
+    agents.map(async ({ didHash }) => {
+      try {
+        const info = await chain.getAgentInfo(didHash);
+        return { didHash, ...info, error: null };
+      } catch (err) {
+        return { didHash, registeredAt: 0, status: -1, error: err };
+      }
+    })
+  );
 
+  // Phase 2: writes share the oracle wallet's nonce, so they stay sequential.
+  for (const { didHash, registeredAt, status, error } of agentInfos) {
+    if (error) {
+      console.error(`[oracle]   ${didHash.slice(0, 10)}… error: ${error.message}`);
+      continue;
+    }
+    try {
       // Slashed agents are terminal — their score was zeroed by CountersigStaking.
-      if (status === chain.STATUS_SLASHED) continue;
+      if (status === chain.STATUS_SLASHED) {
+        chain.pruneAgent(didHash);
+        continue;
+      }
 
       const att       = attestations.get(didHash) ?? { successful: 0, total: 0 };
       const flagCount = flags.get(didHash) ?? 0;
@@ -86,16 +123,18 @@ const MAX_BODY_SIZE = 1024 * 1024; // 1 MB
 
 async function readBody(req) {
   return new Promise((resolve, reject) => {
-    let buf = '';
+    const chunks = [];
+    let size = 0;
     req.on('data', c => {
-      buf += c;
-      if (buf.length > MAX_BODY_SIZE) {
+      size += c.length;
+      if (size > MAX_BODY_SIZE) {
         req.destroy();
-        reject(new Error('Request body too large'));
+        return reject(new Error('Request body too large'));
       }
+      chunks.push(c);
     });
     req.on('end', () => {
-      try { resolve(JSON.parse(buf || '{}')); }
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString() || '{}')); }
       catch { reject(new Error('Invalid JSON')); }
     });
     req.on('error', reject);
@@ -108,6 +147,8 @@ function isAuthorized(req) {
   return header === `Bearer ${cfg.adminToken}`;
 }
 
+const SCORE_PATH_RE = /^\/score\/(0x[0-9a-fA-F]{64})$/;
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${cfg.port}`);
   const { pathname } = url;
@@ -119,6 +160,7 @@ const server = http.createServer(async (req, res) => {
 
   // POST /epoch  — trigger a manual run (useful for testing)
   if (req.method === 'POST' && pathname === '/epoch') {
+    if (epochRunning) return json(res, 409, { error: 'Epoch already running' });
     runEpoch().catch(err => console.error('[oracle] manual epoch error:', err.message));
     return json(res, 202, { message: 'Epoch started' });
   }
@@ -153,7 +195,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // GET /score/:didHash  — preview computed score without writing to chain
-  const scoreMatch = pathname.match(/^\/score\/(0x[0-9a-fA-F]{64})$/);
+  const scoreMatch = pathname.match(SCORE_PATH_RE);
   if (req.method === 'GET' && scoreMatch) {
     const didHash = scoreMatch[1];
     try {

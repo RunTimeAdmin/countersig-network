@@ -17,6 +17,8 @@ const REPUTATION_ABI = [
 // AgentStatus enum — must match CountersigIdentity.sol
 const STATUS_SLASHED = 2;
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
 let provider, wallet, identityContract, reputationContract, cfg_;
 let lastScannedBlock = null;
 const knownAgents = new Map(); // didHash => { didHash, agentAddress, blockNumber }
@@ -40,7 +42,6 @@ async function getRegisteredAgents() {
   const fromBlock = lastScannedBlock !== null ? lastScannedBlock + 1 : cfg_.fromBlock;
 
   if (fromBlock <= latest) {
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
     for (let start = fromBlock; start <= latest; start += chunkSize) {
       const end = Math.min(start + chunkSize - 1, latest);
       const chunk = await identityContract.queryFilter(filter, start, end);
@@ -57,6 +58,13 @@ async function getRegisteredAgents() {
   }
 
   return Array.from(knownAgents.values());
+}
+
+// Removes a slashed agent from the known set. Safe because Slashed is terminal in
+// CountersigIdentity and didHash is deterministic — the same address can never
+// re-register, so there's no risk of losing track of an agent that could return.
+function pruneAgent(didHash) {
+  knownAgents.delete(didHash);
 }
 
 async function getAgentInfo(didHash) {
@@ -81,4 +89,4 @@ async function writeReputation(didHash, scores) {
   return tx.hash;
 }
 
-module.exports = { init, getRegisteredAgents, getAgentInfo, writeReputation, STATUS_SLASHED };
+module.exports = { init, getRegisteredAgents, getAgentInfo, writeReputation, pruneAgent, STATUS_SLASHED };

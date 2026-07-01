@@ -30,9 +30,10 @@ export function base58Decode(str: string): Uint8Array {
   }
   const bytes: number[] = [];
   while (n > 0n) {
-    bytes.unshift(Number(n % 256n));
+    bytes.push(Number(n % 256n));
     n = n / 256n;
   }
+  bytes.reverse();
   let leadingZeros = 0;
   for (const c of str) {
     if (c !== '1') break;
