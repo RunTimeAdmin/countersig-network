@@ -5,6 +5,6 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev
 
-COPY index.js chain.js scoring.js ./
+COPY index.js chain.js scoring.js epoch-policy.js http-helpers.js ./
 
 CMD ["node", "index.js"]
