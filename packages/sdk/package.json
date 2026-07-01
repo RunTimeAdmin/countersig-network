@@ -1,6 +1,6 @@
 {
   "name": "@countersig/protocol-sdk",
-  "version": "1.0.0-alpha.2",
+  "version": "1.0.0-alpha.3",
   "description": "TypeScript SDK for the Countersig Network. On-chain agent identity, reputation, and A2A challenge-response authentication.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
