@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import "../src/CountersigIdentity.sol";
 import "../src/CountersigReputation.sol";
@@ -184,10 +185,17 @@ contract CountersigStakingTest is Test {
     function test_claimWithdrawal_reverts_beforeUnbondingElapsed() public {
         _deposit();
 
+        uint256 initiatedAt = block.timestamp;
         vm.prank(operator);
         staking.initiateWithdrawal(didHash, MIN_STAKE);
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CountersigStaking.UnbondingPeriodActive.selector,
+                didHash,
+                initiatedAt + UNBONDING
+            )
+        );
         vm.prank(operator);
         staking.claimWithdrawal(didHash);
     }
@@ -309,7 +317,13 @@ contract CountersigStakingTest is Test {
     function test_initiateSlash_reverts_notCommittee() public {
         _deposit();
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                stranger,
+                staking.SLASHING_COMMITTEE_ROLE()
+            )
+        );
         vm.prank(stranger);
         staking.initiateSlash(didHash, victim, "");
     }
@@ -473,7 +487,13 @@ contract CountersigStakingTest is Test {
     }
 
     function test_setUnbondingPeriod_reverts_notAdmin() public {
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                stranger,
+                bytes32(0) // DEFAULT_ADMIN_ROLE
+            )
+        );
         vm.prank(stranger);
         staking.setUnbondingPeriod(30 days);
     }

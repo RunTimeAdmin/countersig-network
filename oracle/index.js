@@ -5,6 +5,8 @@ require('dotenv').config();
 const http = require('http');
 const chain = require('./chain');
 const { computeScore } = require('./scoring');
+const { decideAction } = require('./epoch-policy');
+const { json, readBody, isAuthorized, parseScorePath } = require('./http-helpers');
 
 // ---- Config ----------------------------------------------------------------
 
@@ -103,19 +105,14 @@ async function runEpochInner() {
         continue;
       }
 
-      // A pending proposal always overwrites and restarts the challenge window, so
-      // re-proposing every epoch while one is still open would perpetually reset the
-      // clock and it would never finalize. Only propose fresh once nothing is pending
-      // (finalizing first if the current one has cleared its window) — otherwise skip
-      // this agent this epoch and let the existing proposal keep waiting.
-      const ready = pending.exists && (Date.now() / 1000 >= pending.proposedAt + challengeWindow);
+      const action = decideAction(pending, challengeWindow, Date.now() / 1000);
 
-      if (pending.exists && !ready) {
+      if (action === 'skip') {
         console.log(`[oracle]   ${didHash.slice(0, 10)}… score still pending, waiting out challenge window`);
         continue;
       }
 
-      if (ready) {
+      if (action === 'finalize-then-propose') {
         const finalizeTx = await chain.finalizeScore(didHash);
         console.log(`[oracle]   ${didHash.slice(0, 10)}… finalized tx=${finalizeTx.slice(0, 10)}…`);
         finalized++;
@@ -138,41 +135,6 @@ async function runEpochInner() {
 
 // ---- HTTP API --------------------------------------------------------------
 
-function json(res, status, body) {
-  res.writeHead(status, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify(body));
-}
-
-const MAX_BODY_SIZE = 1024 * 1024; // 1 MB
-
-async function readBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let size = 0;
-    req.on('data', c => {
-      size += c.length;
-      if (size > MAX_BODY_SIZE) {
-        req.destroy();
-        return reject(new Error('Request body too large'));
-      }
-      chunks.push(c);
-    });
-    req.on('end', () => {
-      try { resolve(JSON.parse(Buffer.concat(chunks).toString() || '{}')); }
-      catch { reject(new Error('Invalid JSON')); }
-    });
-    req.on('error', reject);
-  });
-}
-
-function isAuthorized(req) {
-  if (!cfg.adminToken) return true; // auth disabled if no token configured
-  const header = req.headers['authorization'] || '';
-  return header === `Bearer ${cfg.adminToken}`;
-}
-
-const SCORE_PATH_RE = /^\/score\/(0x[0-9a-fA-F]{64})$/;
-
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${cfg.port}`);
   const { pathname } = url;
@@ -191,7 +153,7 @@ const server = http.createServer(async (req, res) => {
 
   // POST /attest  — body: { didHash, success }
   if (req.method === 'POST' && pathname === '/attest') {
-    if (!isAuthorized(req)) return json(res, 401, { error: 'Unauthorized' });
+    if (!isAuthorized(req.headers, cfg.adminToken)) return json(res, 401, { error: 'Unauthorized' });
     try {
       const { didHash, success } = await readBody(req);
       if (!didHash) return json(res, 400, { error: 'didHash required' });
@@ -207,7 +169,7 @@ const server = http.createServer(async (req, res) => {
 
   // POST /flag  — body: { didHash }
   if (req.method === 'POST' && pathname === '/flag') {
-    if (!isAuthorized(req)) return json(res, 401, { error: 'Unauthorized' });
+    if (!isAuthorized(req.headers, cfg.adminToken)) return json(res, 401, { error: 'Unauthorized' });
     try {
       const { didHash } = await readBody(req);
       if (!didHash) return json(res, 400, { error: 'didHash required' });
@@ -219,9 +181,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   // GET /score/:didHash  — preview computed score without writing to chain
-  const scoreMatch = pathname.match(SCORE_PATH_RE);
-  if (req.method === 'GET' && scoreMatch) {
-    const didHash = scoreMatch[1];
+  const didHash = parseScorePath(pathname);
+  if (req.method === 'GET' && didHash) {
     try {
       const { registeredAt, status } = await chain.getAgentInfo(didHash);
       const att       = attestations.get(didHash) ?? { successful: 0, total: 0 };

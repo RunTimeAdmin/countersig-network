@@ -24,14 +24,22 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 let provider, wallet, identityContract, reputationContract, cfg_;
 let lastScannedBlock = null;
-const knownAgents = new Map(); // didHash => { didHash, agentAddress, blockNumber }
+let knownAgents = new Map(); // didHash => { didHash, agentAddress, blockNumber }
 
-function init(cfg) {
+// deps lets tests inject fake provider/wallet/contracts instead of connecting
+// to a real RPC. Production usage (index.js) calls init(cfg) with no deps.
+function init(cfg, deps = {}) {
   cfg_ = cfg;
-  provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
-  wallet = new ethers.Wallet(cfg.privateKey, provider);
-  identityContract = new ethers.Contract(cfg.identityAddress, IDENTITY_ABI, provider);
-  reputationContract = new ethers.Contract(cfg.reputationAddress, REPUTATION_ABI, wallet);
+  provider = deps.provider ?? new ethers.JsonRpcProvider(cfg.rpcUrl);
+  wallet = deps.wallet ?? new ethers.Wallet(cfg.privateKey, provider);
+  identityContract = deps.identityContract ?? new ethers.Contract(cfg.identityAddress, IDENTITY_ABI, provider);
+  reputationContract = deps.reputationContract ?? new ethers.Contract(cfg.reputationAddress, REPUTATION_ABI, wallet);
+}
+
+// Clears in-memory scan state — used between tests, not called in production.
+function reset() {
+  lastScannedBlock = null;
+  knownAgents = new Map();
 }
 
 // Returns ALL agents registered so far. Only scans new blocks since the last call
@@ -111,6 +119,7 @@ async function getChallengeWindow() {
 
 module.exports = {
   init,
+  reset,
   getRegisteredAgents,
   getAgentInfo,
   proposeScore,

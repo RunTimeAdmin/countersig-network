@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import "@openzeppelin/contracts/access/IAccessControl.sol";
 import "../src/CountersigIdentity.sol";
 
 contract CountersigIdentityTest is Test {
@@ -193,7 +194,13 @@ contract CountersigIdentityTest is Test {
     function test_updateStatus_strangerCannotSlash() public {
         bytes32 didHash = _register();
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                stranger,
+                identity.STAKING_CORE_ROLE()
+            )
+        );
         vm.prank(stranger);
         identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Slashed);
     }
@@ -201,7 +208,13 @@ contract CountersigIdentityTest is Test {
     function test_updateStatus_operatorCannotSlash() public {
         bytes32 didHash = _register();
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                operator,
+                identity.STAKING_CORE_ROLE()
+            )
+        );
         vm.prank(operator);
         identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Slashed);
     }

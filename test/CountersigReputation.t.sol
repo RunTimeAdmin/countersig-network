@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import "@openzeppelin/contracts/access/IAccessControl.sol";
 import "../src/CountersigReputation.sol";
 
 contract CountersigReputationTest is Test {
@@ -63,7 +64,13 @@ contract CountersigReputationTest is Test {
     }
 
     function test_proposeReputation_reverts_notOracle() public {
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                stranger,
+                rep.ORACLE_ROLE()
+            )
+        );
         vm.prank(stranger);
         rep.proposeReputation(DID, maxScore);
     }
@@ -163,10 +170,17 @@ contract CountersigReputationTest is Test {
     }
 
     function test_finalizeReputation_reverts_beforeWindowElapsed() public {
+        uint256 proposedAt = block.timestamp;
         vm.prank(oracle);
         rep.proposeReputation(DID, maxScore);
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CountersigReputation.ChallengeWindowActive.selector,
+                DID,
+                proposedAt + CHALLENGE_WINDOW
+            )
+        );
         rep.finalizeReputation(DID);
     }
 
@@ -223,7 +237,13 @@ contract CountersigReputationTest is Test {
         vm.prank(oracle);
         rep.proposeReputation(DID, maxScore);
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                stranger,
+                rep.SLASHING_COMMITTEE_ROLE()
+            )
+        );
         vm.prank(stranger);
         rep.rejectReputation(DID);
     }
@@ -237,11 +257,18 @@ contract CountersigReputationTest is Test {
     }
 
     function test_rejectReputation_reverts_afterWindowExpired() public {
+        uint256 proposedAt = block.timestamp;
         vm.prank(oracle);
         rep.proposeReputation(DID, maxScore);
         vm.warp(block.timestamp + CHALLENGE_WINDOW + 1);
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CountersigReputation.ChallengeWindowExpired.selector,
+                DID,
+                proposedAt + CHALLENGE_WINDOW
+            )
+        );
         vm.prank(committee);
         rep.rejectReputation(DID);
     }
@@ -315,7 +342,13 @@ contract CountersigReputationTest is Test {
     }
 
     function test_zeroReputation_reverts_notStaking() public {
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                stranger,
+                rep.STAKING_CORE_ROLE()
+            )
+        );
         vm.prank(stranger);
         rep.zeroReputation(DID);
     }
@@ -345,7 +378,13 @@ contract CountersigReputationTest is Test {
     }
 
     function test_setChallengeWindow_reverts_notAdmin() public {
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                stranger,
+                bytes32(0) // DEFAULT_ADMIN_ROLE
+            )
+        );
         vm.prank(stranger);
         rep.setChallengeWindow(2 hours);
     }
