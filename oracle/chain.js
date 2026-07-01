@@ -10,11 +10,16 @@ const IDENTITY_ABI = [
 const REPUTATION_ABI = [
   'function updateReputation(bytes32 didHash, tuple(uint8 feeScore, uint8 successScore, uint8 ageScore, uint8 externalScore, uint8 communityScore, uint8 propagationScore, uint256 lastUpdated) data)',
 ];
+// Note: lastUpdated in the tuple above is required by the contract's function selector
+// (ABI shape), but the contract always overwrites it with block.timestamp on write —
+// see updateReputation() in CountersigReputation.sol. The client-side value is discarded.
 
 // AgentStatus enum — must match CountersigIdentity.sol
 const STATUS_SLASHED = 2;
 
 let provider, wallet, identityContract, reputationContract, cfg_;
+let lastScannedBlock = null;
+const knownAgents = new Map(); // didHash => { didHash, agentAddress, blockNumber }
 
 function init(cfg) {
   cfg_ = cfg;
@@ -24,28 +29,34 @@ function init(cfg) {
   reputationContract = new ethers.Contract(cfg.reputationAddress, REPUTATION_ABI, wallet);
 }
 
-// Returns all agents registered since fromBlock, chunking getLogs into windows
-// of chunkSize blocks to stay within free-tier RPC limits (e.g. Alchemy: 10).
+// Returns ALL agents registered so far. Only scans new blocks since the last call
+// (chunking getLogs into windows of chunkSize to stay within free-tier RPC limits,
+// e.g. Alchemy: 10) and accumulates them into knownAgents, so repeated epochs don't
+// rescan chain history but every previously-seen agent is still rescored each epoch.
 async function getRegisteredAgents() {
-  const fromBlock = cfg_.fromBlock;
   const chunkSize = cfg_.logChunkSize;
   const filter = identityContract.filters.AgentRegistered();
   const latest = await provider.getBlockNumber();
+  const fromBlock = lastScannedBlock !== null ? lastScannedBlock + 1 : cfg_.fromBlock;
 
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const allEvents = [];
-  for (let start = fromBlock; start <= latest; start += chunkSize) {
-    const end = Math.min(start + chunkSize - 1, latest);
-    const chunk = await identityContract.queryFilter(filter, start, end);
-    allEvents.push(...chunk);
-    if (end < latest) await sleep(400);
+  if (fromBlock <= latest) {
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    for (let start = fromBlock; start <= latest; start += chunkSize) {
+      const end = Math.min(start + chunkSize - 1, latest);
+      const chunk = await identityContract.queryFilter(filter, start, end);
+      for (const e of chunk) {
+        knownAgents.set(e.args.didHash, {
+          didHash: e.args.didHash,
+          agentAddress: e.args.agentAddress,
+          blockNumber: e.blockNumber,
+        });
+      }
+      if (end < latest) await sleep(400);
+    }
+    lastScannedBlock = latest;
   }
 
-  return allEvents.map(e => ({
-    didHash: e.args.didHash,
-    agentAddress: e.args.agentAddress,
-    blockNumber: e.blockNumber,
-  }));
+  return Array.from(knownAgents.values());
 }
 
 async function getAgentInfo(didHash) {

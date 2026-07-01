@@ -1,4 +1,5 @@
 import nacl from 'tweetnacl';
+import { randomBytes } from 'crypto';
 import { base58Encode, base58Decode } from './keys';
 import type { Challenge, ParsedChallenge } from './types';
 
@@ -66,9 +67,7 @@ function randomHex(bytes: number): string {
   if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.getRandomValues) {
     globalThis.crypto.getRandomValues(arr);
   } else {
-    // Node.js fallback
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { randomBytes } = require('crypto') as typeof import('crypto');
+    // Node.js fallback for environments without a global crypto object
     const buf = randomBytes(bytes);
     buf.copy(Buffer.from(arr.buffer));
   }

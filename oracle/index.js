@@ -17,6 +17,7 @@ const cfg = {
   port:              Number(process.env.PORT || 3030),
   fromBlock:         Number(process.env.FROM_BLOCK  || 0),
   logChunkSize:      Number(process.env.LOG_CHUNK_SIZE || 2000),
+  adminToken:        process.env.ORACLE_ADMIN_TOKEN || '',
 };
 
 if (!cfg.rpcUrl || !cfg.privateKey || !cfg.identityAddress || !cfg.reputationAddress) {
@@ -81,16 +82,30 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+const MAX_BODY_SIZE = 1024 * 1024; // 1 MB
+
 async function readBody(req) {
   return new Promise((resolve, reject) => {
     let buf = '';
-    req.on('data', c => { buf += c; });
+    req.on('data', c => {
+      buf += c;
+      if (buf.length > MAX_BODY_SIZE) {
+        req.destroy();
+        reject(new Error('Request body too large'));
+      }
+    });
     req.on('end', () => {
       try { resolve(JSON.parse(buf || '{}')); }
       catch { reject(new Error('Invalid JSON')); }
     });
     req.on('error', reject);
   });
+}
+
+function isAuthorized(req) {
+  if (!cfg.adminToken) return true; // auth disabled if no token configured
+  const header = req.headers['authorization'] || '';
+  return header === `Bearer ${cfg.adminToken}`;
 }
 
 const server = http.createServer(async (req, res) => {
@@ -110,6 +125,7 @@ const server = http.createServer(async (req, res) => {
 
   // POST /attest  — body: { didHash, success }
   if (req.method === 'POST' && pathname === '/attest') {
+    if (!isAuthorized(req)) return json(res, 401, { error: 'Unauthorized' });
     try {
       const { didHash, success } = await readBody(req);
       if (!didHash) return json(res, 400, { error: 'didHash required' });
@@ -125,6 +141,7 @@ const server = http.createServer(async (req, res) => {
 
   // POST /flag  — body: { didHash }
   if (req.method === 'POST' && pathname === '/flag') {
+    if (!isAuthorized(req)) return json(res, 401, { error: 'Unauthorized' });
     try {
       const { didHash } = await readBody(req);
       if (!didHash) return json(res, 400, { error: 'didHash required' });
