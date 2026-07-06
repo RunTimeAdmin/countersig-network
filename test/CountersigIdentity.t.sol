@@ -302,4 +302,35 @@ contract CountersigIdentityTest is Test {
         bytes32 didHash = _register();
         assertTrue(identity.isActive(didHash));
     }
+
+    // -------------------------------------------------------------------------
+    // Storage layout
+    // -------------------------------------------------------------------------
+    // Pins the base slots the Sepolia proxy was deployed with. slashSuspended was
+    // APPENDED at slot 2; if any of these fail, a variable was inserted above the
+    // existing mappings, which shifts their base slots and makes every live
+    // identity/operator index unreachable after the UUPS upgrade.
+
+    function test_storageLayout_identitiesMappingPinnedToSlot0() public {
+        bytes32 didHash = _register();
+        // First field of AgentIdentity is `operator`.
+        bytes32 slot = keccak256(abi.encode(didHash, uint256(0)));
+        assertEq(address(uint160(uint256(vm.load(address(identity), slot)))), operator);
+    }
+
+    function test_storageLayout_operatorAgentsPinnedToSlot1() public {
+        _register();
+        // The dynamic array's length lives at the mapping value slot.
+        bytes32 slot = keccak256(abi.encode(operator, uint256(1)));
+        assertEq(uint256(vm.load(address(identity), slot)), 1);
+    }
+
+    function test_storageLayout_slashSuspendedPinnedToSlot2() public {
+        bytes32 didHash = _register();
+        vm.prank(staking);
+        identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Suspended);
+
+        bytes32 slot = keccak256(abi.encode(didHash, uint256(2)));
+        assertEq(uint256(vm.load(address(identity), slot)), 1);
+    }
 }
