@@ -3,26 +3,25 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
 
-import "../src/CountersigIdentity.sol";
 import "../src/CountersigReputation.sol";
 import "../src/CountersigStaking.sol";
 
 /**
  * @title Upgrade
- * @notice Upgrades the live Sepolia CountersigIdentity, CountersigReputation, and
- *         CountersigStaking proxies to their current implementations.
+ * @notice Historical record of the V2 migration that upgraded the live Sepolia
+ *         CountersigReputation and CountersigStaking proxies to the
+ *         optimistic-scoring / unbonding implementations. Already executed — both
+ *         proxies are on V2 on-chain (challengeWindow = 1800, unbondingPeriod =
+ *         21 days), so re-running this reverts (reinitializer(2) already consumed).
  *
- * Reputation and Staking use upgradeToAndCall so each new implementation and its
- * V2 config land in a single transaction. A bare upgrade would leave
- * challengeWindow and unbondingPeriod at 0, which silently means
- * instantly-finalizable score proposals (rejection impossible) and
- * instantly-claimable withdrawals.
+ * Uses upgradeToAndCall so each new implementation and its V2 config land in a
+ * single transaction. A bare upgrade would leave challengeWindow and
+ * unbondingPeriod at 0, which silently means instantly-finalizable score
+ * proposals (rejection impossible) and instantly-claimable withdrawals.
  *
- * CountersigIdentity is upgraded to enforce the slash-suspension lock: its new
- * `slashSuspended` mapping is appended (slot 2), so no initializer is needed —
- * the map defaults empty and existing identities keep their slots (see the
- * storage-layout tests in test/CountersigIdentity.t.sol). It is upgraded with
- * empty calldata.
+ * CountersigIdentity is NOT upgraded here — it has no V2 initializer and its
+ * upgrade happened separately via script/UpgradeIdentity.s.sol (the slash-
+ * suspension lock), which is safe to run independently of these two.
  *
  * CSIGToken's faucet cooldown is deliberately NOT deployed on testnet: the token
  * has no proxy, so shipping it means a new token address that orphans every
@@ -33,8 +32,7 @@ import "../src/CountersigStaking.sol";
  *   forge script script/Upgrade.s.sol --rpc-url $SEPOLIA_RPC --broadcast --verify -vvvv
  *
  * Required env vars:
- *   DEPLOYER_PRIVATE_KEY   — must hold UPGRADER_ROLE on all three proxies, and
- *                            DEFAULT_ADMIN_ROLE on Reputation and Staking (for their initializeV2)
+ *   DEPLOYER_PRIVATE_KEY   — must hold UPGRADER_ROLE and DEFAULT_ADMIN_ROLE on both proxies
  *
  * Optional env vars:
  *   COMMITTEE_ADDRESS      — SLASHING_COMMITTEE_ROLE grantee on Reputation (default: deployer)
@@ -45,12 +43,8 @@ import "../src/CountersigStaking.sol";
  */
 contract Upgrade is Script {
     // Sepolia proxies — must match deployments/11155111.json.
-    address constant IDENTITY_PROXY   = 0xD738A4cBe525d214f86059A8328786f072D6fbe1;
     address constant REPUTATION_PROXY = 0x0613C561C5003D7948Ea09dE2C1895965A5c3F27;
     address constant STAKING_PROXY    = 0x60347640d46B55E7dafFA8F385bc55eE2D77ee85;
-
-    // ERC-1967 implementation slot: bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1)
-    bytes32 constant IMPL_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
 
     uint256 constant DEFAULT_SCORE_CHALLENGE_WINDOW = 30 minutes;
     uint256 constant DEFAULT_UNBONDING_PERIOD = 21 days;
@@ -63,19 +57,14 @@ contract Upgrade is Script {
         uint256 scoreWindow = vm.envOr("SCORE_CHALLENGE_WINDOW", DEFAULT_SCORE_CHALLENGE_WINDOW);
         uint256 unbond      = vm.envOr("UNBONDING_PERIOD",       DEFAULT_UNBONDING_PERIOD);
 
-        CountersigIdentity identity = CountersigIdentity(IDENTITY_PROXY);
         CountersigReputation reputation = CountersigReputation(REPUTATION_PROXY);
         CountersigStaking staking = CountersigStaking(STAKING_PROXY);
 
         vm.startBroadcast(deployerKey);
 
-        CountersigIdentity identityImpl = new CountersigIdentity();
         CountersigReputation repImpl = new CountersigReputation();
         CountersigStaking stakingImpl = new CountersigStaking();
 
-        // Identity: no new config to seed (slashSuspended defaults empty), so
-        // upgrade with empty calldata.
-        identity.upgradeToAndCall(address(identityImpl), "");
         reputation.upgradeToAndCall(
             address(repImpl),
             abi.encodeCall(CountersigReputation.initializeV2, (committee, scoreWindow))
@@ -87,18 +76,13 @@ contract Upgrade is Script {
 
         vm.stopBroadcast();
 
-        // Post-upgrade sanity: fail loudly if an implementation or V2 config didn't land.
-        require(
-            address(uint160(uint256(vm.load(IDENTITY_PROXY, IMPL_SLOT)))) == address(identityImpl),
-            "identity impl not upgraded"
-        );
+        // Post-upgrade sanity: fail loudly if the V2 config didn't land.
         require(reputation.challengeWindow() == scoreWindow, "challengeWindow not set");
         require(staking.unbondingPeriod() == unbond, "unbondingPeriod not set");
         require(reputation.hasRole(reputation.SLASHING_COMMITTEE_ROLE(), committee), "committee role not granted");
 
         console2.log("=== Countersig Upgrade (Sepolia) ===");
         console2.log("Deployer:            ", deployer);
-        console2.log("Identity impl (new): ", address(identityImpl));
         console2.log("Reputation impl (new):", address(repImpl));
         console2.log("Staking impl (new):   ", address(stakingImpl));
         console2.log("Committee:           ", committee);
