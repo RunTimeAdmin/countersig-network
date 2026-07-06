@@ -85,7 +85,15 @@ export function bytes32ToPubKey(bytes32: string): Uint8Array {
   return hexToBytes(hex);
 }
 
-// Multibase encoding: z-prefix + base58btc, as required for W3C DID Documents.
+// Multibase encoding for W3C DID Documents (Ed25519VerificationKey2020):
+// multicodec ed25519-pub prefix (0xed 0x01) + raw key, base58btc-encoded with a
+// 'z' multibase prefix. The multicodec header is required for standard resolvers
+// to recognize the key type; encoding the bare key produces a non-interoperable value.
 export function pubKeyToMultibase(pubKey: Uint8Array): string {
-  return 'z' + base58Encode(pubKey);
+  if (pubKey.length !== 32) throw new Error('Ed25519 public key must be 32 bytes');
+  const prefixed = new Uint8Array(2 + pubKey.length);
+  prefixed[0] = 0xed;
+  prefixed[1] = 0x01;
+  prefixed.set(pubKey, 2);
+  return 'z' + base58Encode(prefixed);
 }
