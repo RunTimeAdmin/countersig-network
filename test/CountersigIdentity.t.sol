@@ -232,6 +232,55 @@ contract CountersigIdentityTest is Test {
         identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Active);
     }
 
+    function test_updateStatus_operatorCannotLiftStakingSuspension() public {
+        bytes32 didHash = _register();
+
+        // Staking core suspends the agent (as initiateSlash does).
+        vm.prank(staking);
+        identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Suspended);
+        assertTrue(identity.slashSuspended(didHash));
+
+        // Operator must not be able to reactivate mid-slash.
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigIdentity.SlashSuspensionLocked.selector, didHash)
+        );
+        vm.prank(operator);
+        identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Active);
+    }
+
+    function test_updateStatus_stakingReinstateClearsLock() public {
+        bytes32 didHash = _register();
+
+        vm.prank(staking);
+        identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Suspended);
+
+        // Staking reinstates (as disputeSlash does) — lock clears.
+        vm.prank(staking);
+        identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Active);
+        assertFalse(identity.slashSuspended(didHash));
+        assertTrue(identity.isActive(didHash));
+
+        // Operator regains normal control afterward.
+        vm.prank(operator);
+        identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Suspended);
+        vm.prank(operator);
+        identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Active);
+        assertTrue(identity.isActive(didHash));
+    }
+
+    function test_updateStatus_operatorSelfSuspendStaysReversible() public {
+        bytes32 didHash = _register();
+
+        // A self-suspend by the operator is not a slash lock.
+        vm.prank(operator);
+        identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Suspended);
+        assertFalse(identity.slashSuspended(didHash));
+
+        vm.prank(operator);
+        identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Active);
+        assertTrue(identity.isActive(didHash));
+    }
+
     function test_updateStatus_reverts_notRegistered() public {
         bytes32 fakeHash = keccak256("nonexistent");
         vm.expectRevert(

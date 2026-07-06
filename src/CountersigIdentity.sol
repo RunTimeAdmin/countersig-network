@@ -50,6 +50,17 @@ contract CountersigIdentity is Initializable, AccessControlUpgradeable, UUPSUpgr
     /// Secondary index: operator => list of didHashes they control
     mapping(address => bytes32[]) public operatorAgents;
 
+    // Appended after the original layout. New storage must always be declared
+    // AFTER existing variables so a UUPS upgrade doesn't shift the base slots of
+    // the mappings above (see the same discipline in CountersigStaking).
+    //
+    /// True while the agent is Suspended because the staking core initiated a
+    /// slash. The operator may NOT lift this suspension — only the staking core
+    /// can (on dispute resolution). Without this, an operator could call
+    /// updateStatus(Active) to un-suspend themselves mid-challenge-window,
+    /// defeating the halt initiateSlash relies on.
+    mapping(bytes32 => bool) public slashSuspended;
+
     // -------------------------------------------------------------------------
     // Events
     // -------------------------------------------------------------------------
@@ -73,6 +84,7 @@ contract CountersigIdentity is Initializable, AccessControlUpgradeable, UUPSUpgr
     error ZeroPubKey();
     error ZeroAgentAddress();
     error SlashedAgentImmutable(bytes32 didHash);
+    error SlashSuspensionLocked(bytes32 didHash);
 
     // -------------------------------------------------------------------------
     // Constructor / Initializer
@@ -166,12 +178,27 @@ contract CountersigIdentity is Initializable, AccessControlUpgradeable, UUPSUpgr
 
         if (id.status == AgentStatus.Slashed) revert SlashedAgentImmutable(didHash);
 
+        bool isStakingCore = hasRole(STAKING_CORE_ROLE, msg.sender);
+
         if (newStatus == AgentStatus.Slashed) {
             _checkRole(STAKING_CORE_ROLE);
-        } else if (!hasRole(STAKING_CORE_ROLE, msg.sender)) {
+        } else if (!isStakingCore) {
             // Staking core can suspend (slash initiation) or reinstate without operator consent.
             // Everyone else must be the operator.
             _requireOperator(id, didHash);
+            // An operator cannot clear a suspension the staking core applied for a
+            // pending slash. Only the staking core reinstates it (via disputeSlash).
+            if (slashSuspended[didHash]) revert SlashSuspensionLocked(didHash);
+        }
+
+        // Track/clear the staking-applied suspension lock so the operator can't
+        // reactivate mid-slash, while normal operator self-suspends stay unlocked.
+        if (isStakingCore) {
+            if (newStatus == AgentStatus.Suspended) {
+                slashSuspended[didHash] = true;
+            } else if (newStatus == AgentStatus.Active) {
+                slashSuspended[didHash] = false;
+            }
         }
 
         id.status = newStatus;
