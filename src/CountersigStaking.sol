@@ -50,7 +50,11 @@ contract CountersigStaking is
 
     struct Stake {
         uint256 amount;
-        uint256 lockedAt;
+        uint256 lockedAt;        // timestamp of the last deposit; recorded for off-chain
+                                 // reporting. Retained (not removed) because this struct
+                                 // backs the deployed `stakes` mapping — dropping a field
+                                 // would shift the slots of unbondingAmount/unbondingAt and
+                                 // corrupt every live stake after a UUPS upgrade.
         uint256 unbondingAmount; // queued for withdrawal, still slashable until claimed
         uint256 unbondingAt;     // when unbonding was initiated
     }
