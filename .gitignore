@@ -2,6 +2,10 @@
 out/
 cache/
 
+# Foundry deployment run records (local history; sensitive values live in the
+# already-ignored cache/, never here)
+broadcast/
+
 # Dependencies (installed by forge install)
 lib/
 
@@ -48,3 +52,6 @@ repowiki/
 
 # Local session artifacts
 CODE_REVIEW_REPORT.md
+
+# Local planning spreadsheets (e.g. presale_model.xlsx), not part of the codebase
+*.xlsx
