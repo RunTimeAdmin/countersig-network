@@ -16,6 +16,7 @@ const cfg = {
   identityAddress:   process.env.IDENTITY_ADDRESS   || '',
   reputationAddress: process.env.REPUTATION_ADDRESS || '',
   epochMs:           Number(process.env.EPOCH_HOURS || 24) * 3_600_000,
+  host:              process.env.HOST || '127.0.0.1',
   port:              Number(process.env.PORT || 3030),
   fromBlock:         Number(process.env.FROM_BLOCK  || 0),
   logChunkSize:      Number(process.env.LOG_CHUNK_SIZE || 2000),
@@ -161,6 +162,9 @@ const server = http.createServer(async (req, res) => {
 
   // POST /epoch  — trigger a manual run (useful for testing)
   if (req.method === 'POST' && pathname === '/epoch') {
+    // Gated: a manual epoch submits on-chain tx's paid from the oracle wallet, so
+    // it must not be triggerable by anyone who can reach the port.
+    if (!isAuthorized(req.headers, cfg.adminToken)) return json(res, 401, { error: 'Unauthorized' });
     if (epochRunning) return json(res, 409, { error: 'Epoch already running' });
     runEpoch().catch(err => console.error('[oracle] manual epoch error:', err.message));
     return json(res, 202, { message: 'Epoch started' });
@@ -212,8 +216,11 @@ const server = http.createServer(async (req, res) => {
   return json(res, 404, { error: 'Not found' });
 });
 
-server.listen(cfg.port, () => {
-  console.log(`[oracle] HTTP on :${cfg.port}  epoch every ${cfg.epochMs / 3_600_000}h`);
+server.listen(cfg.port, cfg.host, () => {
+  if (!cfg.adminToken) {
+    console.warn('[oracle] WARNING: ORACLE_ADMIN_TOKEN is unset — /attest, /flag, and /epoch are UNAUTHENTICATED. Set a token before exposing this service.');
+  }
+  console.log(`[oracle] HTTP on ${cfg.host}:${cfg.port}  epoch every ${cfg.epochMs / 3_600_000}h`);
   runEpoch();
   setInterval(runEpoch, cfg.epochMs);
 });
