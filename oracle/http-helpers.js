@@ -1,5 +1,7 @@
 'use strict';
 
+const crypto = require('crypto');
+
 // Pure-ish HTTP helpers extracted from index.js so the auth gate, body-size
 // limit, and route parsing can be unit tested without a live server.
 
@@ -40,7 +42,12 @@ async function readBody(req, maxBodySize = MAX_BODY_SIZE) {
 function isAuthorized(headers, adminToken) {
   if (!adminToken) return true; // auth disabled if no token configured
   const header = headers['authorization'] || '';
-  return header === `Bearer ${adminToken}`;
+  const expected = `Bearer ${adminToken}`;
+  // Constant-time compare to avoid leaking the token via response timing.
+  // timingSafeEqual requires equal-length buffers, so length-mismatch fails first.
+  const a = Buffer.from(header);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 // Returns the didHash from a /score/:didHash path, or null if it doesn't match.

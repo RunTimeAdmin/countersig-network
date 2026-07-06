@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { IDENTITY_ABI, REPUTATION_ABI, STAKING_ABI } from './abis';
 import { parseDid, computeDidHash } from './did';
-import { verifyChallenge } from './challenge';
+import { verifyChallenge, parseChallengePayload, isChallengeExpired } from './challenge';
 import { bytes32ToPubKey, pubKeyToMultibase } from './keys';
 import type {
   VerifierConfig,
@@ -103,7 +103,28 @@ export class CountersigVerifier {
   }
 
   // Resolve the agent's Ed25519 public key from chain and verify the signature.
-  async verifySignature(did: string, challengePayload: string, signatureBase58: string): Promise<boolean> {
+  //
+  // Besides the cryptographic check, this binds the challenge to `did` and rejects
+  // stale challenges so a captured (payload, signature) pair can't be replayed after
+  // it expires. Nonce uniqueness within the freshness window is still the caller's
+  // responsibility — track consumed nonces if you need strict single-use semantics.
+  async verifySignature(
+    did: string,
+    challengePayload: string,
+    signatureBase58: string,
+    maxAgeSeconds = 300
+  ): Promise<boolean> {
+    // The payload must name this DID as the prover, otherwise a signature made for a
+    // different challenge/DID could be presented against this one.
+    let parsed;
+    try {
+      parsed = parseChallengePayload(challengePayload);
+    } catch {
+      return false;
+    }
+    if (parsed.did !== did) return false;
+    if (isChallengeExpired(challengePayload, maxAgeSeconds)) return false;
+
     const identity = await this.getIdentity(did);
     if (identity.registeredAt === 0n) return false;
     if (identity.ed25519PubKey === ethers.ZeroHash) return false;

@@ -90,11 +90,15 @@ describe('pubKey encoding', () => {
     expect(bytes32ToPubKey(bytes32)).toEqual(kp.publicKey);
   });
 
-  it('multibase has z prefix', () => {
+  it('multibase has z prefix and ed25519-pub multicodec header', () => {
     const kp = seedToKeyPair(nacl.randomBytes(32));
     const mb = pubKeyToMultibase(kp.publicKey);
     expect(mb.startsWith('z')).toBe(true);
-    // z-prefix is stripped before base58 decode
-    expect(base58Decode(mb.slice(1))).toEqual(kp.publicKey);
+    // z-prefix is stripped, then the decoded bytes are the 0xed01 multicodec
+    // header followed by the raw 32-byte key.
+    const decoded = base58Decode(mb.slice(1));
+    expect(decoded[0]).toBe(0xed);
+    expect(decoded[1]).toBe(0x01);
+    expect(decoded.slice(2)).toEqual(kp.publicKey);
   });
 });

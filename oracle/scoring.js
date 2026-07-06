@@ -43,7 +43,8 @@ function computeScore({ registeredAt, attestations, flags }) {
   const cs = communityScore(flags ?? 0);
   const ps = 0;  // Trust propagation graph — Phase 2
 
-  return { feeScore: fs, successScore: ss, ageScore: as, externalScore: es, communityScore: cs, propagationScore: ps, total: fs + ss + as + cs };
+  // Sum all six factors so total stays correct once es/ps become nonzero in Phase 2.
+  return { feeScore: fs, successScore: ss, ageScore: as, externalScore: es, communityScore: cs, propagationScore: ps, total: fs + ss + as + es + cs + ps };
 }
 
 module.exports = { computeScore, feeScore, successScore, ageScore, communityScore };
