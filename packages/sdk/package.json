@@ -1,10 +1,12 @@
 {
   "name": "@countersig/protocol-sdk",
-  "version": "1.0.0-alpha.5",
+  "version": "1.0.0-alpha.6",
   "description": "TypeScript SDK for the Countersig Network. On-chain agent identity, reputation, and A2A challenge-response authentication.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
@@ -29,5 +31,14 @@
     "directory": "packages/sdk"
   },
   "homepage": "https://countersig.network",
-  "keywords": ["ai-agents", "did", "identity", "reputation", "ethereum", "ed25519", "web3", "nhi"]
+  "keywords": [
+    "ai-agents",
+    "did",
+    "identity",
+    "reputation",
+    "ethereum",
+    "ed25519",
+    "web3",
+    "nhi"
+  ]
 }
