@@ -17,7 +17,7 @@ contract CSIGToken is ERC20, Ownable {
 
     error FaucetCooldownActive(address caller, uint256 availableAt);
 
-    constructor(address owner) ERC20("Countersig", "CSIG") Ownable(owner) {}
+    constructor(address owner_) ERC20("Countersig", "CSIG") Ownable(owner_) {}
 
     function mint(address to, uint256 amount) external onlyOwner {
         _mint(to, amount);
