@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  contracts:
+    name: Contracts (forge)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      # lib/ is gitignored (not vendored, not submodules), so CI fetches the
+      # Solidity deps at the versions foundry.toml's remappings expect.
+      # OZ is pinned to v5.6.1; forge-std tracks its default branch (test-only
+      # scaffolding, stable cheatcode API).
+      - name: Fetch Solidity dependencies
+        run: |
+          git clone --depth 1 --branch v5.6.1 https://github.com/OpenZeppelin/openzeppelin-contracts.git lib/openzeppelin-contracts
+          git clone --depth 1 --branch v5.6.1 https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable.git lib/openzeppelin-contracts-upgradeable
+          git clone --depth 1 https://github.com/foundry-rs/forge-std.git lib/forge-std
+
+      - name: Build
+        run: forge build --sizes
+
+      - name: Test (ci profile — 5000 fuzz runs)
+        run: forge test --profile ci -vvv
+
+  sdk:
+    name: SDK (vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/sdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+  oracle:
+    name: Oracle (node --test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: oracle
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: node --test
