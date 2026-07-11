@@ -56,4 +56,31 @@ function parseScorePath(pathname) {
   return match ? match[1] : null;
 }
 
-module.exports = { MAX_BODY_SIZE, json, readBody, isAuthorized, parseScorePath };
+// Simple in-memory fixed-window rate limiter, keyed by an arbitrary string
+// (caller passes the client IP). Testnet-grade: single-process and resets on
+// restart, but it blunts bursts of writes to /attest, /flag, and /epoch on top
+// of the bearer-token gate — a stolen token can no longer flood scores/gas.
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 60; // requests per key per window
+const _rateBuckets = new Map();
+
+function rateLimited(key, now = Date.now(), max = RATE_MAX, windowMs = RATE_WINDOW_MS) {
+  const bucket = _rateBuckets.get(key);
+  if (!bucket || now >= bucket.reset) {
+    _rateBuckets.set(key, { count: 1, reset: now + windowMs });
+    return false;
+  }
+  bucket.count++;
+  return bucket.count > max;
+}
+
+module.exports = {
+  MAX_BODY_SIZE,
+  RATE_WINDOW_MS,
+  RATE_MAX,
+  json,
+  readBody,
+  isAuthorized,
+  parseScorePath,
+  rateLimited,
+};

@@ -4,7 +4,7 @@
 
 The Countersig Network is a decentralized identity and trust protocol designed explicitly for autonomous AI agents. As AI agents evolve into independent economic actors, the lack of verifiable Non-Human Identity (NHI) presents a systemic risk, enabling Sybil attacks, reputation manipulation, and unaccountable execution.
 
-This protocol redesign transitions Countersig from a centralized SaaS architecture into a permissionless, cryptoeconomically secured infrastructure. The design philosophy centers on **verifiability, interoperability, and economic accountability**. By anchoring W3C Decentralized Identifiers (DIDs) on-chain, enforcing Ed25519 PKI challenge-response authentication, and implementing a staked 5-factor reputation algorithm, Countersig establishes a trustless environment for agent-to-agent (A2A) and human-to-agent interactions.
+This protocol redesign transitions Countersig from a centralized SaaS architecture into a permissionless, cryptoeconomically secured infrastructure. The design philosophy centers on **verifiability, interoperability, and economic accountability**. By anchoring W3C Decentralized Identifiers (DIDs) on-chain, enforcing Ed25519 PKI challenge-response authentication, and implementing a staked 6-factor reputation algorithm, Countersig establishes a trustless environment for agent-to-agent (A2A) and human-to-agent interactions.
 
 **Key Differences from Centralized Predecessor:**
 - **State Management:** Identity and reputation state transitions from a centralized PostgreSQL database to EVM-compatible smart contract registries.
@@ -49,7 +49,7 @@ The Countersig Network operates across three layers: the On-Chain State Layer, t
 ```
 
 **Core Components:**
-- **On-Chain State:** Three primary EVM registries manage the lifecycle of agent identities, compute their 5-factor reputation scores, and store verifiable credential hashes. The Staking Core enforces economic security.
+- **On-Chain State:** Three primary EVM registries manage the lifecycle of agent identities, compute their 6-factor reputation scores, and store verifiable credential hashes. The Staking Core enforces economic security.
 - **Decentralized Identity Layer:** A network of DID resolvers that map `did:countersig` identifiers to their on-chain state and retrieve public keys for signature verification.
 - **Off-Chain Verification:** Agents and users interact directly, using challenge-response protocols signed with Ed25519 keys. The on-chain registries act as the ultimate source of truth for public keys and reputation status.
 
@@ -67,7 +67,7 @@ Anchors the agent's identity and maps it to the operator's address and the agent
 - **Key Interface:** `registerAgent(bytes32 didHash, bytes32 ed25519PubKey)`
 
 ### Registry 2: Trust/Reputation Registry
-Maintains the 5-factor reputation score for each agent.
+Maintains the 6-factor reputation score for each agent.
 
 - **Storage Layout:**
   - `mapping(bytes32 => ReputationData) public reputations;`
@@ -123,21 +123,25 @@ Agents authenticate off-chain using their Ed25519 keys, verified against the on-
 3. **Sign:** Agent A signs the payload using its Ed25519 private key.
 4. **Resolve:** Agent B resolves `AgentA_DID` via the Identity Registry to retrieve the `publicKeyMultibase`.
 5. **Verify:** Agent B verifies the signature using the retrieved public key. If valid, authentication succeeds.
-## 5. Reputation System: 5-Factor Algorithm
+## 5. Reputation System: 6-Factor Algorithm
 
-The Countersig reputation system computes a deterministic score (0-100) using a 5-factor model. This score is stored in the Reputation Registry and determines the agent's trust tier.
+The Countersig reputation system computes a deterministic score (0-100) using a 6-factor model. This score is stored in the Reputation Registry and determines the agent's trust tier.
 
-### The 5 Factors and Weights
-1. **Fee Activity (30%):** Measures economic utility. Calculated based on verifiable on-chain transaction volume or API fees paid/received. 
+### The 6 Factors and Weights
+1. **Fee Activity (30%):** Measures economic utility. Calculated based on verifiable on-chain transaction volume or API fees paid/received.
    - *Scoring:* `min(30, floor(totalFeesUSD / 100))`
 2. **Success Rate (25%):** Measures operational reliability. Based on cryptographic attestations from counterparties regarding successful task completion.
    - *Scoring:* `floor((successfulTasks / totalTasks) * 25)`
-3. **Registration Age (20%):** Measures longevity and persistence.
-   - *Scoring:* `min(20, daysSinceRegistration)`
+3. **Registration Age (20%):** Measures longevity and persistence. Logarithmic, so it can't be farmed simply by waiting.
+   - *Scoring:* `min(20, floor(log2(daysSinceRegistration + 1) * 4))`
 4. **External Trust (15%):** Measures cross-platform validity. Integrates scores from external registries (e.g., SAID Protocol, Gitcoin Passport).
    - *Scoring:* `floor((externalScore / 100) * 15)`
-5. **Community Verification (10%):** Measures behavioral safety. Starts at 10, reduced by community flags or minor slashing events.
-   - *Scoring:* `10 - (activeFlags * 5)` (Min 0)
+5. **Community Verification (5%):** Measures behavioral safety. Starts at 5, reduced by community flags.
+   - *Scoring:* `max(0, 5 - (activeFlags * 2))`
+6. **Trust Propagation (5%):** Inherited trust from high-reputation agents that vouch for or delegate to this agent.
+   - *Scoring:* oracle-computed from the attestation/vouch graph.
+
+> **Phase note:** External Trust (4) and Trust Propagation (6) are stubbed to 0 until the Phase 2 oracle network is live; the on-chain caps and the other four factors are active today. This matches `docs/reputation-model.md`, `CountersigReputation.sol`, and `oracle/scoring.js`.
 
 ### On-Chain Scoring Mechanics
 To optimize gas, the Reputation Registry does not compute the score on every transaction. Instead, an off-chain decentralized oracle network aggregates the raw data, computes the score, and submits a state update to the registry periodically (e.g., every 24 hours) or upon a significant deviation threshold.

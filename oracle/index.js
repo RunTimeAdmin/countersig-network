@@ -6,7 +6,12 @@ const http = require('http');
 const chain = require('./chain');
 const { computeScore } = require('./scoring');
 const { decideAction } = require('./epoch-policy');
-const { json, readBody, isAuthorized, parseScorePath } = require('./http-helpers');
+const { json, readBody, isAuthorized, parseScorePath, rateLimited } = require('./http-helpers');
+
+// Per-client key for rate limiting. Behind the container's 127.0.0.1 port map all
+// requests may share one source IP, so this degrades to a global cap — still a
+// useful flood guard for the write endpoints.
+const clientKey = req => req.socket?.remoteAddress || 'unknown';
 
 // ---- Config ----------------------------------------------------------------
 
@@ -165,6 +170,7 @@ const server = http.createServer(async (req, res) => {
     // Gated: a manual epoch submits on-chain tx's paid from the oracle wallet, so
     // it must not be triggerable by anyone who can reach the port.
     if (!isAuthorized(req.headers, cfg.adminToken)) return json(res, 401, { error: 'Unauthorized' });
+    if (rateLimited(clientKey(req))) return json(res, 429, { error: 'Rate limited' });
     if (epochRunning) return json(res, 409, { error: 'Epoch already running' });
     runEpoch().catch(err => console.error('[oracle] manual epoch error:', err.message));
     return json(res, 202, { message: 'Epoch started' });
@@ -173,6 +179,7 @@ const server = http.createServer(async (req, res) => {
   // POST /attest  — body: { didHash, success }
   if (req.method === 'POST' && pathname === '/attest') {
     if (!isAuthorized(req.headers, cfg.adminToken)) return json(res, 401, { error: 'Unauthorized' });
+    if (rateLimited(clientKey(req))) return json(res, 429, { error: 'Rate limited' });
     try {
       const { didHash, success } = await readBody(req);
       if (!didHash) return json(res, 400, { error: 'didHash required' });
@@ -189,6 +196,7 @@ const server = http.createServer(async (req, res) => {
   // POST /flag  — body: { didHash }
   if (req.method === 'POST' && pathname === '/flag') {
     if (!isAuthorized(req.headers, cfg.adminToken)) return json(res, 401, { error: 'Unauthorized' });
+    if (rateLimited(clientKey(req))) return json(res, 429, { error: 'Rate limited' });
     try {
       const { didHash } = await readBody(req);
       if (!didHash) return json(res, 400, { error: 'didHash required' });
