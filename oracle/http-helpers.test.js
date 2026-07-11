@@ -3,7 +3,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
-const { readBody, isAuthorized, parseScorePath } = require('./http-helpers');
+const { readBody, isAuthorized, parseScorePath, rateLimited, RATE_MAX } = require('./http-helpers');
 
 // Minimal fake matching the subset of http.IncomingMessage that readBody uses:
 // an EventEmitter with data/end/error events plus a destroy() method.
@@ -112,4 +112,32 @@ test('parseScorePath: missing 0x prefix returns null', () => {
 
 test('parseScorePath: unrelated path returns null', () => {
   assert.equal(parseScorePath('/health'), null);
+});
+
+// -------------------------------------------------------------------------
+// rateLimited
+// -------------------------------------------------------------------------
+
+test('rateLimited: allows up to the max, then blocks within the window', () => {
+  const key = 'ip-a';
+  const now = 1_000_000;
+  for (let i = 0; i < RATE_MAX; i++) {
+    assert.equal(rateLimited(key, now), false, `request ${i + 1} should pass`);
+  }
+  assert.equal(rateLimited(key, now), true, 'the (max+1)th request is blocked');
+});
+
+test('rateLimited: window reset clears the count', () => {
+  const key = 'ip-b';
+  const now = 2_000_000;
+  for (let i = 0; i < RATE_MAX; i++) rateLimited(key, now);
+  assert.equal(rateLimited(key, now), true, 'blocked at the cap');
+  assert.equal(rateLimited(key, now + 60_001), false, 'allowed again after the window');
+});
+
+test('rateLimited: separate keys have independent buckets', () => {
+  const now = 3_000_000;
+  for (let i = 0; i < RATE_MAX; i++) rateLimited('ip-c', now);
+  assert.equal(rateLimited('ip-c', now), true, 'ip-c is capped');
+  assert.equal(rateLimited('ip-d', now), false, 'ip-d is unaffected');
 });
