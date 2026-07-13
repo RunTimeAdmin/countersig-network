@@ -26,6 +26,9 @@ const cfg = {
   fromBlock:         Number(process.env.FROM_BLOCK  || 0),
   logChunkSize:      Number(process.env.LOG_CHUNK_SIZE || 2000),
   adminToken:        process.env.ORACLE_ADMIN_TOKEN || '',
+  // Optional: CountersigEpochFees address. When set (and its on-chain epochFee > 0),
+  // the oracle only scores agents with fee coverage and charges them per epoch.
+  feeRegistryAddress: process.env.FEE_REGISTRY_ADDRESS || '',
 };
 
 if (!cfg.rpcUrl || !cfg.privateKey || !cfg.identityAddress || !cfg.reputationAddress) {
@@ -88,23 +91,30 @@ async function runEpochInner() {
   // premature finalize that would revert.
   const chainNow = await chain.getLatestBlockTimestamp();
 
+  // Epoch-fee gating (opt-in via FEE_REGISTRY_ADDRESS). Active only when a fee
+  // registry is configured AND the on-chain epochFee is non-zero. When inactive,
+  // every agent is treated as covered and nothing is charged.
+  const gatingActive = chain.feeGatingConfigured() && (await chain.getEpochFee()) > 0n;
+  if (gatingActive) console.log('[oracle] epoch-fee gating ACTIVE');
+
   // Phase 1: reads are stateless — fire them concurrently instead of one at a time.
   const agentInfos = await Promise.all(
     agents.map(async ({ didHash }) => {
       try {
-        const [info, pending] = await Promise.all([
+        const [info, pending, covered] = await Promise.all([
           chain.getAgentInfo(didHash),
           chain.getPendingScore(didHash),
+          gatingActive ? chain.isCovered(didHash) : Promise.resolve(true),
         ]);
-        return { didHash, ...info, pending, error: null };
+        return { didHash, ...info, pending, covered, error: null };
       } catch (err) {
-        return { didHash, registeredAt: 0, status: -1, pending: null, error: err };
+        return { didHash, registeredAt: 0, status: -1, pending: null, covered: false, error: err };
       }
     })
   );
 
   // Phase 2: writes share the oracle wallet's nonce, so they stay sequential.
-  for (const { didHash, registeredAt, status, pending, error } of agentInfos) {
+  for (const { didHash, registeredAt, status, pending, covered, error } of agentInfos) {
     if (error) {
       console.error(`[oracle]   ${didHash.slice(0, 10)}… error: ${error.message}`);
       continue;
@@ -113,6 +123,12 @@ async function runEpochInner() {
       // Slashed agents are terminal — their score was zeroed by CountersigStaking.
       if (status === chain.STATUS_SLASHED) {
         chain.pruneAgent(didHash);
+        continue;
+      }
+
+      // Uncovered agents fall out of the active scoring run (tokenomics §4).
+      if (gatingActive && !covered) {
+        console.log(`[oracle]   ${didHash.slice(0, 10)}… uncovered (no epoch fee), skipping`);
         continue;
       }
 
@@ -146,6 +162,16 @@ async function runEpochInner() {
 
       console.log(`[oracle]   ${didHash.slice(0, 10)}… proposed score=${scores.total}/100 tx=${txHash.slice(0, 10)}…`);
       proposed++;
+
+      // Charge the epoch fee only after a successful proposal, so an agent pays
+      // solely for scoring runs it was actually included in.
+      if (gatingActive) {
+        try {
+          await chain.chargeEpoch(didHash);
+        } catch (chargeErr) {
+          console.error(`[oracle]   ${didHash.slice(0, 10)}… epoch-fee charge failed: ${chargeErr.message}`);
+        }
+      }
     } catch (err) {
       console.error(`[oracle]   ${didHash.slice(0, 10)}… error: ${err.message}`);
     }
