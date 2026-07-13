@@ -242,3 +242,46 @@ test('getLatestBlockTimestamp: converts block timestamp to a number', async () =
   assert.equal(ts, 1_700_000_123);
   assert.equal(typeof ts, 'number');
 });
+
+// ---- Epoch-fee gating -------------------------------------------------------
+
+function makeFakeFeeContract({ epochFee = 0n, covered = {} } = {}) {
+  const calls = { chargeEpoch: [] };
+  return {
+    calls,
+    epochFee: async () => epochFee,
+    isCovered: async didHash => covered[didHash] ?? false,
+    chargeEpoch: async didHash => {
+      calls.chargeEpoch.push(didHash);
+      return { hash: '0xchargeTxHash', wait: async () => ({}) };
+    },
+  };
+}
+
+test('fee gating: not configured and helpers are no-ops without a registry', async () => {
+  chain.init(CFG, {
+    provider: makeFakeProvider(1),
+    identityContract: makeFakeIdentityContract(),
+    reputationContract: makeFakeReputationContract(),
+  });
+  assert.equal(chain.feeGatingConfigured(), false);
+  assert.equal(await chain.getEpochFee(), 0n);
+  assert.equal(await chain.isCovered('0xaaa'), true);   // everyone covered when off
+  assert.equal(await chain.chargeEpoch('0xaaa'), undefined); // no-op
+});
+
+test('fee gating: helpers delegate to the registry when configured', async () => {
+  const fee = makeFakeFeeContract({ epochFee: 10n, covered: { '0xaaa': true, '0xbbb': false } });
+  chain.init(CFG, {
+    provider: makeFakeProvider(1),
+    identityContract: makeFakeIdentityContract(),
+    reputationContract: makeFakeReputationContract(),
+    feeContract: fee,
+  });
+  assert.equal(chain.feeGatingConfigured(), true);
+  assert.equal(await chain.getEpochFee(), 10n);
+  assert.equal(await chain.isCovered('0xaaa'), true);
+  assert.equal(await chain.isCovered('0xbbb'), false);
+  await chain.chargeEpoch('0xaaa');
+  assert.deepEqual(fee.calls.chargeEpoch, ['0xaaa']);
+});

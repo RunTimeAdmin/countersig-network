@@ -17,12 +17,18 @@ const REPUTATION_ABI = [
 // (ABI shape), but the contract always overwrites it with block.timestamp on finalize —
 // see finalizeReputation() in CountersigReputation.sol. The client-side value is discarded.
 
+const FEE_ABI = [
+  'function epochFee() view returns (uint256)',
+  'function isCovered(bytes32 didHash) view returns (bool)',
+  'function chargeEpoch(bytes32 didHash) returns (bool)',
+];
+
 // AgentStatus enum — must match CountersigIdentity.sol
 const STATUS_SLASHED = 2;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-let provider, wallet, identityContract, reputationContract, cfg_;
+let provider, wallet, identityContract, reputationContract, feeContract, cfg_;
 let lastScannedBlock = null;
 let knownAgents = new Map(); // didHash => { didHash, agentAddress, blockNumber }
 
@@ -34,6 +40,11 @@ function init(cfg, deps = {}) {
   wallet = deps.wallet ?? new ethers.Wallet(cfg.privateKey, provider);
   identityContract = deps.identityContract ?? new ethers.Contract(cfg.identityAddress, IDENTITY_ABI, provider);
   reputationContract = deps.reputationContract ?? new ethers.Contract(cfg.reputationAddress, REPUTATION_ABI, wallet);
+
+  // Epoch-fee gating is opt-in: only wired when FEE_REGISTRY_ADDRESS is set. When
+  // absent, the oracle scores every agent as before (testnet default).
+  feeContract = deps.feeContract ??
+    (cfg.feeRegistryAddress ? new ethers.Contract(cfg.feeRegistryAddress, FEE_ABI, wallet) : null);
 }
 
 // Clears in-memory scan state — used between tests, not called in production.
@@ -125,6 +136,34 @@ async function getLatestBlockTimestamp() {
   return Number(block.timestamp);
 }
 
+// ---- Epoch-fee gating (opt-in) --------------------------------------------
+
+// True when a fee registry is configured. When false, all fee helpers below are
+// no-ops that report "covered" so the epoch loop scores everyone.
+function feeGatingConfigured() {
+  return !!feeContract;
+}
+
+// Current per-epoch fee in wei. 0 means gating is effectively disabled on-chain.
+async function getEpochFee() {
+  if (!feeContract) return 0n;
+  return feeContract.epochFee();
+}
+
+async function isCovered(didHash) {
+  if (!feeContract) return true;
+  return feeContract.isCovered(didHash);
+}
+
+// Charges one epoch fee for the agent. isCovered() is checked first by the caller,
+// so this is expected to succeed; the tx return is not inspected.
+async function chargeEpoch(didHash) {
+  if (!feeContract) return;
+  const tx = await feeContract.chargeEpoch(didHash);
+  await tx.wait(1);
+  return tx.hash;
+}
+
 module.exports = {
   init,
   reset,
@@ -136,5 +175,9 @@ module.exports = {
   getChallengeWindow,
   getLatestBlockTimestamp,
   pruneAgent,
+  feeGatingConfigured,
+  getEpochFee,
+  isCovered,
+  chargeEpoch,
   STATUS_SLASHED,
 };
