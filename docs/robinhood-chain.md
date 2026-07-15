@@ -152,7 +152,7 @@ Robinhood Chain for liquidity; revisit any Ethereum-only assumptions in
 
 - [x] Fund deployer on Robinhood testnet
 - [x] `forge script …Deploy.s.sol --rpc-url robinhood_testnet --broadcast`
-- [ ] Commit `deployments/46630.json` (and RH harness docs)
+- [x] Commit `deployments/46630.json` (and RH harness docs)
 - [x] Wire `oracle/.env` + roles (deployer holds ORACLE_ROLE)
 - [x] Pass SDK `integration.test.ts` with `COUNTERSIG_CHAIN_ID=46630`
-- [ ] Update consumer docs/apps away from Sepolia examples when RH is primary
+- [x] Update consumer docs/apps away from Sepolia examples when RH is primary

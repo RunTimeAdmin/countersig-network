@@ -27,15 +27,17 @@ This means the reputation score is frozen in time. If an agent's reputation chan
 Add these variables to your `.env`:
 
 ```bash
-# Countersig identity enrichment
-COUNTERSIG_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
-COUNTERSIG_IDENTITY_ADDRESS=0xD738A4cBe525d214f86059A8328786f072D6fbe1
-COUNTERSIG_REPUTATION_ADDRESS=0x0613C561C5003D7948Ea09dE2C1895965A5c3F27
-COUNTERSIG_CHAIN_ID=11155111
+# Countersig identity enrichment (Robinhood Chain testnet)
+COUNTERSIG_RPC_URL=https://rpc.testnet.chain.robinhood.com
+COUNTERSIG_IDENTITY_ADDRESS=0xCCF2Fd69c07EDFbc3C215cfD31e2F20FC208A16C
+COUNTERSIG_REPUTATION_ADDRESS=0xbB0c9C2DF28af31905dEfEa04c80372C0909f1bF
+COUNTERSIG_CHAIN_ID=46630
 
 # Optional — default is 5000ms
 COUNTERSIG_ENRICH_TIMEOUT_MS=5000
 ```
+
+> For the legacy Sepolia deployment use `deployments/11155111.json` and `COUNTERSIG_CHAIN_ID=11155111`.
 
 Then rebuild and restart the container:
 
@@ -64,7 +66,7 @@ curl -X POST https://api.counteraudit.io/v1/audit/ingest \
   -H "Content-Type: application/json" \
   -d '{
     "connector_id": "my-agent-connector",
-    "agent_did": "did:countersig:11155111:0xYourAgentAddress",
+    "agent_did": "did:countersig:46630:0xYourAgentAddress",
     "raw_event": {
       "action": "tool_call",
       "tool": "web_search",
@@ -134,9 +136,9 @@ The decrypted `packet` object contains:
 
 ```json
 {
-  "agent_did": "did:countersig:11155111:0xbCB531B68A87F4BcC3a0394ccD2DB95C52bB4E08",
+  "agent_did": "did:countersig:46630:0xbCB531B68A87F4BcC3a0394ccD2DB95C52bB4E08",
   "agent_did_hash": "0x2d657d1d166f5c7ed90bebc6808f50d07d7e70cba897d91e7f7d918629d4b0be",
-  "agent_chain_id": 11155111,
+  "agent_chain_id": 46630,
   "agent_reputation_score": 47,
   "agent_identity_status": "Active",
   "agent_identity_verified": true,
@@ -187,7 +189,7 @@ import { ethers } from 'ethers';
 const didHash = ethers.keccak256(
   ethers.solidityPacked(
     ['string', 'uint256', 'string', 'address'],
-    ['did:countersig:', BigInt(11155111), ':', agentAddress]
+    ['did:countersig:', BigInt(46630), ':', agentAddress]
   )
 );
 ```
@@ -203,7 +205,7 @@ You can gate which agents are allowed to operate by checking reputation before a
 ```typescript
 import { CountersigVerifier } from '@countersig/protocol-sdk';
 
-const verifier = new CountersigVerifier({ rpcUrl, addresses, chainId: 11155111 });
+const verifier = new CountersigVerifier({ rpcUrl, addresses, chainId: 46630 });
 
 async function handleAgentAction(agentDid: string, action: object) {
   // Block agents below threshold before their action is even audited

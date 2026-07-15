@@ -253,7 +253,7 @@
         <div class="hiw-card" style="background: rgba(79,142,247,0.04); border-color: rgba(79,142,247,0.2);">
           <div class="hiw-num" style="color: var(--accent2); background: rgba(124,90,247,0.1); border-color: rgba(124,90,247,0.25);">→</div>
           <h3>Ready to build?</h3>
-          <p>Follow the step-by-step guide to register your first agent on Sepolia in about 10 minutes.</p>
+          <p>Follow the step-by-step guide to register your first agent on Robinhood Chain testnet in about 10 minutes.</p>
           <a href="docs/quickstart.html" style="font-size:13px; margin-top: 8px; display:inline-block;">Quickstart guide →</a>
         </div>
       </div>
@@ -299,8 +299,8 @@
     <!-- Contracts -->
     <div class="contracts-section">
       <div class="section-label">Testnet Contracts</div>
-      <h2>Live on Sepolia</h2>
-      <p class="section-lead">Chain ID 11155111. All contracts source-verified on Etherscan. Addresses mirrored in <code>deployments/11155111.json</code>.</p>
+      <h2>Live on Robinhood Chain</h2>
+      <p class="section-lead">Chain ID 46630 (testnet). Addresses mirrored in <code>deployments/46630.json</code>. Explorer: <a href="https://explorer.testnet.chain.robinhood.com" target="_blank" rel="noopener">explorer.testnet.chain.robinhood.com</a>.</p>
       <table class="data-table">
         <thead>
           <tr><th>Contract</th><th>Address</th><th>Status</th></tr>
@@ -308,26 +308,27 @@
         <tbody>
           <tr>
             <td class="mono">CSIGToken</td>
-            <td class="addr"><a href="https://sepolia.etherscan.io/address/0x6d5E311e821c3e279dBe9833F8e33828f7716FA8" target="_blank" rel="noopener">0x6d5E311e821c3e279dBe9833F8e33828f7716FA8</a></td>
-            <td><span class="tag tag-green">Verified</span></td>
+            <td class="addr"><a href="https://explorer.testnet.chain.robinhood.com/address/0x7E44aF56d14EBfd16D5D7Ba4F011b5206d487D55" target="_blank" rel="noopener">0x7E44aF56d14EBfd16D5D7Ba4F011b5206d487D55</a></td>
+            <td><span class="tag tag-green">Live</span></td>
           </tr>
           <tr>
             <td class="mono">CountersigIdentity</td>
-            <td class="addr"><a href="https://sepolia.etherscan.io/address/0xD738A4cBe525d214f86059A8328786f072D6fbe1" target="_blank" rel="noopener">0xD738A4cBe525d214f86059A8328786f072D6fbe1</a></td>
-            <td><span class="tag tag-green">Verified</span></td>
+            <td class="addr"><a href="https://explorer.testnet.chain.robinhood.com/address/0xCCF2Fd69c07EDFbc3C215cfD31e2F20FC208A16C" target="_blank" rel="noopener">0xCCF2Fd69c07EDFbc3C215cfD31e2F20FC208A16C</a></td>
+            <td><span class="tag tag-green">Live</span></td>
           </tr>
           <tr>
             <td class="mono">CountersigReputation</td>
-            <td class="addr"><a href="https://sepolia.etherscan.io/address/0x0613C561C5003D7948Ea09dE2C1895965A5c3F27" target="_blank" rel="noopener">0x0613C561C5003D7948Ea09dE2C1895965A5c3F27</a></td>
-            <td><span class="tag tag-green">Verified</span></td>
+            <td class="addr"><a href="https://explorer.testnet.chain.robinhood.com/address/0xbB0c9C2DF28af31905dEfEa04c80372C0909f1bF" target="_blank" rel="noopener">0xbB0c9C2DF28af31905dEfEa04c80372C0909f1bF</a></td>
+            <td><span class="tag tag-green">Live</span></td>
           </tr>
           <tr>
             <td class="mono">CountersigStaking</td>
-            <td class="addr"><a href="https://sepolia.etherscan.io/address/0x60347640d46B55E7dafFA8F385bc55eE2D77ee85" target="_blank" rel="noopener">0x60347640d46B55E7dafFA8F385bc55eE2D77ee85</a></td>
-            <td><span class="tag tag-green">Verified</span></td>
+            <td class="addr"><a href="https://explorer.testnet.chain.robinhood.com/address/0x7281cf35ae9Bf56EAF5B1d0C2C8e167e50BCEC75" target="_blank" rel="noopener">0x7281cf35ae9Bf56EAF5B1d0C2C8e167e50BCEC75</a></td>
+            <td><span class="tag tag-green">Live</span></td>
           </tr>
         </tbody>
       </table>
+      <p class="section-lead" style="margin-top:16px;font-size:13px;opacity:0.8">Legacy Sepolia (`11155111`) addresses remain in <code>deployments/11155111.json</code>.</p>
     </div>
 
     <hr class="divider" />
@@ -347,7 +348,7 @@
         </div>
         <div class="roadmap-item">
           <span class="roadmap-phase tag tag-green">DONE</span>
-          <div><h3>Sepolia Testnet Deployment</h3><p>All 4 contracts deployed and source-verified. Addresses live above. SDK integration tests activate automatically.</p></div>
+          <div><h3>Robinhood Chain Testnet Deployment</h3><p>Protocol live on Robinhood Chain testnet (46630). Sepolia retained as legacy. Addresses in <code>deployments/46630.json</code>. SDK integration tests pass against the live deploy.</p></div>
         </div>
         <div class="roadmap-item">
           <span class="roadmap-phase tag tag-blue">Q4 2026</span>

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quickstart — Countersig Network</title>
-  <meta name="description" content="Register your first AI agent on Countersig Network in 10 minutes. Step-by-step guide for Sepolia testnet." />
+  <meta name="description" content="Register your first AI agent on Countersig Network in 10 minutes. Step-by-step guide for Robinhood Chain testnet." />
   <link rel="icon" type="image/png" href="../assets/logo.png" />
   <link rel="stylesheet" href="../assets/style.css" />
 </head>
@@ -66,9 +66,9 @@
       <main class="docs-content">
         <div class="section-label">Getting Started</div>
         <h2>Quickstart</h2>
-        <p>From zero to a registered, reputation-tracked AI agent on Sepolia in about 10 minutes. You need Node.js 18+, a wallet with Sepolia ETH, and an Alchemy or Infura RPC URL.</p>
+        <p>From zero to a registered, reputation-tracked AI agent on Robinhood Chain testnet in about 10 minutes. You need Node.js 18+, Robinhood testnet ETH, and an RPC URL.</p>
 
-        <div class="callout"><strong>Testnet only.</strong> These instructions target Sepolia (chain ID 11155111). Mainnet deployment is planned for Q1 2027.</div>
+        <div class="callout"><strong>Testnet only.</strong> These instructions target Robinhood Chain testnet (chain ID 46630). Mainnet deployment is planned for Q1 2027.</div>
 
         <div class="qs-step">
           <div class="qs-header"><div class="qs-num">1</div><h3>Install the SDK</h3></div>
@@ -86,7 +86,7 @@
 <span class="kw">const</span> provider = <span class="kw">new</span> ethers.<span class="fn">JsonRpcProvider</span>(process.env.RPC_URL);
 <span class="kw">const</span> signer   = <span class="kw">new</span> ethers.<span class="fn">Wallet</span>(process.env.OPERATOR_PRIVATE_KEY, provider);
 <span class="kw">const</span> csig     = <span class="kw">new</span> ethers.<span class="fn">Contract</span>(
-  <span class="str">'0x6d5E311e821c3e279dBe9833F8e33828f7716FA8'</span>,
+  <span class="str">'0x7E44aF56d14EBfd16D5D7Ba4F011b5206d487D55'</span>,
   [<span class="str">'function faucet() external'</span>],
   signer
 );
@@ -102,11 +102,11 @@
 
 <span class="kw">const</span> { agent, privateKey } = <span class="fn">CountersigAgent</span>.<span class="fn">generate</span>({
   agentAddress: signer.address,
-  chainId:      <span class="num">11155111</span>,
+  chainId:      <span class="num">46630</span>,
 });
 
 console.log(agent.did);
-<span class="cm">// → did:countersig:11155111:0xYourAddress</span>
+<span class="cm">// → did:countersig:46630:0xYourAddress</span>
 
 <span class="cm">// Store privateKey in your secrets manager — never commit it.</span></code></pre>
           </div>
@@ -118,8 +118,8 @@ console.log(agent.did);
             <p>Two transactions: approve the staking contract to spend CSIG, then register. The contract computes your <code>didHash</code> from your address and chain ID.</p>
             <pre><code><span class="kw">import</span> { <span class="fn">registerAgent</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
 
-<span class="kw">const</span> IDENTITY_ADDRESS = <span class="str">'0xD738A4cBe525d214f86059A8328786f072D6fbe1'</span>;
-<span class="kw">const</span> STAKING_ADDRESS  = <span class="str">'0x60347640d46B55E7dafFA8F385bc55eE2D77ee85'</span>;
+<span class="kw">const</span> IDENTITY_ADDRESS = <span class="str">'0xCCF2Fd69c07EDFbc3C215cfD31e2F20FC208A16C'</span>;
+<span class="kw">const</span> STAKING_ADDRESS  = <span class="str">'0x7281cf35ae9Bf56EAF5B1d0C2C8e167e50BCEC75'</span>;
 <span class="kw">const</span> minStake = ethers.<span class="fn">parseEther</span>(<span class="str">'1000'</span>);
 
 <span class="kw">await</span> csig.<span class="fn">approve</span>(STAKING_ADDRESS, minStake);
@@ -128,7 +128,7 @@ console.log(agent.did);
   signer, signer.address, agent.publicKeyBytes32,
   IDENTITY_ADDRESS, STAKING_ADDRESS, minStake
 );
-console.log(<span class="str">'Registered:'</span>, `https://sepolia.etherscan.io/tx/${txHash}`);</code></pre>
+console.log(<span class="str">'Registered:'</span>, `https://explorer.testnet.chain.robinhood.com/tx/${txHash}`);</code></pre>
           </div>
         </div>
 
@@ -137,12 +137,12 @@ console.log(<span class="str">'Registered:'</span>, `https://sepolia.etherscan.i
           <div class="qs-body">
             <pre><code><span class="kw">import</span> { <span class="fn">CountersigVerifier</span> } <span class="kw">from</span> <span class="str">'@countersig/protocol-sdk'</span>;
 
-<span class="kw">const</span> REPUTATION_ADDRESS = <span class="str">'0x0613C561C5003D7948Ea09dE2C1895965A5c3F27'</span>;
+<span class="kw">const</span> REPUTATION_ADDRESS = <span class="str">'0xbB0c9C2DF28af31905dEfEa04c80372C0909f1bF'</span>;
 
 <span class="kw">const</span> verifier = <span class="kw">new</span> <span class="fn">CountersigVerifier</span>({
   rpcUrl:    process.env.RPC_URL,
   addresses: { identity: IDENTITY_ADDRESS, reputation: REPUTATION_ADDRESS, staking: STAKING_ADDRESS },
-  chainId:   <span class="num">11155111</span>,
+  chainId:   <span class="num">46630</span>,
 });
 
 <span class="kw">const</span> identity = <span class="kw">await</span> verifier.<span class="fn">getIdentity</span>(agent.did);
@@ -160,7 +160,7 @@ console.log(score);             <span class="cm">// → 5 (community baseline �
             <pre><code><span class="kw">const</span> myAgent = <span class="kw">new</span> <span class="fn">CountersigAgent</span>({
   privateKey:   process.env.AGENT_ED25519_SEED,
   agentAddress: signer.address,
-  chainId:      <span class="num">11155111</span>,
+  chainId:      <span class="num">46630</span>,
 });
 
 <span class="cm">// Peer issues a challenge → your agent signs it</span>

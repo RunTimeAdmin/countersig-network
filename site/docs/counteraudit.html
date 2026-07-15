@@ -79,7 +79,7 @@
 <span class="kw">const</span> myAgent = <span class="kw">new</span> <span class="fn">CountersigAgent</span>({
   privateKey:   process.env.AGENT_ED25519_SEED,
   agentAddress: process.env.AGENT_ADDRESS,
-  chainId:      <span class="num">11155111</span>,
+  chainId:      <span class="num">46630</span>,
 });
 
 <span class="kw">async function</span> <span class="fn">auditAction</span>(action: <span class="kw">object</span>) {
@@ -101,9 +101,9 @@
         <h3>What Gets Sealed</h3>
         <p>When CounterAudit receives an ingest call with a valid <code>agent_did</code>, it reads the following fields from the Countersig contracts at ingest time and embeds them inside the sealed packet:</p>
         <div class="sealed-packet">
-          <span class="sp-key">"agent_did"</span>: <span class="sp-str">"did:countersig:11155111:0xbCB531B68A87F4BcC3a0394ccD2DB95C52bB4E08"</span>,<br />
+          <span class="sp-key">"agent_did"</span>: <span class="sp-str">"did:countersig:46630:0xbCB531B68A87F4BcC3a0394ccD2DB95C52bB4E08"</span>,<br />
           <span class="sp-key">"agent_did_hash"</span>: <span class="sp-str">"0x2d657d1d166f5c7ed90bebc6808f50d07d7e70cba897d91e7f7d918629d4b0be"</span>,<br />
-          <span class="sp-key">"agent_chain_id"</span>: <span class="sp-num">11155111</span>,<br />
+          <span class="sp-key">"agent_chain_id"</span>: <span class="sp-num">46630</span>,<br />
           <span class="sp-key">"agent_reputation_score"</span>: <span class="sp-num">47</span>,<br />
           <span class="sp-key">"agent_identity_status"</span>: <span class="sp-str">"Active"</span>,<br />
           <span class="sp-key">"agent_identity_verified"</span>: <span class="sp-bool-t">true</span>,<br />
@@ -118,7 +118,7 @@
 <span class="kw">const</span> { packet } = <span class="kw">await</span> res.<span class="fn">json</span>();
 
 <span class="cm">// Countersig fields are in the decrypted body</span>
-console.log(packet.agent_did);              <span class="cm">// did:countersig:11155111:0x...</span>
+console.log(packet.agent_did);              <span class="cm">// did:countersig:46630:0x...</span>
 console.log(packet.agent_reputation_score); <span class="cm">// Score at time of action</span>
 console.log(packet.agent_identity_status);  <span class="cm">// Active | Suspended | Slashed</span></code></pre>
 

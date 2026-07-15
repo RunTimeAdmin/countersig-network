@@ -6,7 +6,7 @@ As AI agents become independent economic actors, the absence of verifiable Non-H
 
 > **No $CSIG token exists yet.** There has been no token generation event, no public sale, and no listing on any exchange or launchpad. Any token claiming to be "$CSIG" or "Countersig" that you find on pump.fun or elsewhere is not affiliated with this project and was not created by this team. Our brand assets were stolen and used for one such token — see [Token Economics](docs/tokenomics.md) for the actual (pre-TGE) tokenomics design, and treat this repository and [countersig.network](https://countersig.network) as the only canonical sources.
 >
-> What *is* real: the protocol below is live on Sepolia testnet, the [`@countersig/protocol-sdk`](https://www.npmjs.com/package/@countersig/protocol-sdk) is published on npm, and [CounterAudit](https://counteraudit.io) already consumes Countersig identity and reputation data in production — sealed into forensic audit packets on a live oracle. That's the actual substance behind this project; a copycat token has none of it.
+> What *is* real: the protocol below is live on **Robinhood Chain testnet** (chain ID `46630`; see [`deployments/46630.json`](deployments/46630.json)), the [`@countersig/protocol-sdk`](https://www.npmjs.com/package/@countersig/protocol-sdk) is published on npm, and [CounterAudit](https://counteraudit.io) already consumes Countersig identity and reputation data in production — sealed into forensic audit packets on a live oracle. A legacy Sepolia deployment also remains. That's the actual substance behind this project; a copycat token has none of it.
 
 ### This repo vs. the Countersig SaaS platform
 
@@ -304,18 +304,23 @@ import { CountersigAgent, CountersigVerifier } from '@countersig/protocol-sdk';
 const agentA = new CountersigAgent({
   privateKey: process.env.AGENT_A_ED25519_SEED,  // 32-byte hex seed
   agentAddress: '0xAgentAAddress',
-  chainId: 11155111,
+  chainId: 46630,  // Robinhood Chain testnet
 });
 
 // Agent B — the verifier (has its own identity + a verifier for on-chain lookups)
 const agentB = new CountersigAgent({
   privateKey: process.env.AGENT_B_ED25519_SEED,
   agentAddress: '0xAgentBAddress',
-  chainId: 11155111,
+  chainId: 46630,
 });
 const verifier = new CountersigVerifier({
-  rpcUrl: 'https://sepolia.infura.io/v3/...',
-  addresses: { identity: '0x...', reputation: '0x...', staking: '0x...' },
+  rpcUrl: 'https://rpc.testnet.chain.robinhood.com',
+  addresses: {
+    identity: '0xCCF2Fd69c07EDFbc3C215cfD31e2F20FC208A16C',
+    reputation: '0xbB0c9C2DF28af31905dEfEa04c80372C0909f1bF',
+    staking: '0x7281cf35ae9Bf56EAF5B1d0C2C8e167e50BCEC75',
+  },
+  chainId: 46630,
 });
 
 // B issues a challenge to A
@@ -399,7 +404,7 @@ await fetch('https://api.counteraudit.io/v1/audit/ingest', {
   headers: { 'Authorization': `Bearer ${CA_API_KEY}`, 'Content-Type': 'application/json' },
   body: JSON.stringify({
     connector_id: 'my-agent',
-    agent_did: 'did:countersig:11155111:0x...',
+    agent_did: 'did:countersig:46630:0x...',
     raw_event: { action: 'tool_call', tool: 'web_search', query: '...' },
   }),
 });
@@ -428,7 +433,7 @@ require(rep.meetsThreshold(didHash, 60), "insufficient reputation");
 
 | Phase | Timeline | Deliverables |
 |---|---|---|
-| Core Protocol | Q3 2026 | Sepolia testnet · `@countersig/protocol-sdk` v1.0 |
+| Core Protocol | Q3 2026 | Robinhood Chain testnet (`46630`) · Sepolia legacy · `@countersig/protocol-sdk` v1.0 |
 | Oracle Network | Q4 2026 | Decentralized reputation aggregation · SAID + Gitcoin integration |
 | Mainnet | Q1 2027 | Tier-1 security audit · mainnet deployment · `$CSIG` TGE |
 | Cross-Chain | Q2 2027 | Solana + Base state mirroring via LayerZero |

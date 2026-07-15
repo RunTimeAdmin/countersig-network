@@ -88,7 +88,7 @@
 <span class="kw">const</span> csAgent = <span class="kw">new</span> <span class="fn">CountersigAgent</span>({
   privateKey:   process.env.AGENT_ED25519_SEED,
   agentAddress: process.env.AGENT_ADDRESS,
-  chainId:      <span class="num">11155111</span>,
+  chainId:      <span class="num">46630</span>,
 });
 
 <span class="cm">// Wrap any LangChain tool to add Countersig auditing</span>
@@ -170,7 +170,7 @@ class AuditedTool(BaseTool):
 <span class="kw">const</span> csAgent = <span class="kw">new</span> <span class="fn">CountersigAgent</span>({
   privateKey:   process.env.AGENT_ED25519_SEED,
   agentAddress: process.env.AGENT_ADDRESS,
-  chainId:      <span class="num">11155111</span>,
+  chainId:      <span class="num">46630</span>,
 });
 
 <span class="cm">// Call before or after any significant agent action</span>

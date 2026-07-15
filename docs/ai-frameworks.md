@@ -180,7 +180,7 @@ import { CountersigAgent } from '@countersig/protocol-sdk';
 const myAgent = new CountersigAgent({
   privateKey: process.env.AGENT_ED25519_SEED!,
   agentAddress: process.env.AGENT_ADDRESS!,
-  chainId: 11155111,
+  chainId: 46630,
 });
 
 async function withAudit<T>(
@@ -226,7 +226,7 @@ import { CountersigAgent, CountersigVerifier } from '@countersig/protocol-sdk';
 const myAgent = new CountersigAgent({
   privateKey: process.env.AGENT_ED25519_SEED!,
   agentAddress: process.env.AGENT_ADDRESS!,
-  chainId: 11155111,
+  chainId: 46630,
 });
 
 // Handle an inbound challenge from a peer
@@ -238,7 +238,7 @@ function handleChallenge(challengePayload: string): { did: string; signature: st
 }
 
 // Verify an inbound agent before trusting its output
-const verifier = new CountersigVerifier({ rpcUrl, addresses, chainId: 11155111 });
+const verifier = new CountersigVerifier({ rpcUrl, addresses, chainId: 46630 });
 
 async function trustAgent(did: string, payload: string, signature: string): Promise<boolean> {
   const sigValid = await verifier.verifySignature(did, payload, signature);

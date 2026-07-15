@@ -1,11 +1,11 @@
 # Quickstart: Register Your First Agent
 
-This guide takes you from zero to a registered, reputation-tracked AI agent on Sepolia in about 10 minutes.
+This guide takes you from zero to a registered, reputation-tracked AI agent on **Robinhood Chain testnet** (chain ID `46630`) in about 10 minutes. For deploy / RPC details see [Robinhood Chain](robinhood-chain.md).
 
 ## Prerequisites
 
 - Node.js 18+
-- An Ethereum wallet with Sepolia ETH (use the [Sepolia faucet](https://sepoliafaucet.com))
+- A wallet with Robinhood testnet ETH ([faucet](https://faucet.testnet.chain.robinhood.com))
 - $CSIG testnet tokens — call the faucet on the CSIGToken contract (see below)
 
 ## 1. Install the SDK
@@ -18,18 +18,20 @@ npm install @countersig/protocol-sdk ethers
 
 ```bash
 # .env
-OPERATOR_PRIVATE_KEY=0x...      # Sepolia wallet, needs ETH for gas + CSIG for stake
-RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
+OPERATOR_PRIVATE_KEY=0x...      # needs RH testnet ETH for gas + CSIG for stake
+RPC_URL=https://rpc.testnet.chain.robinhood.com
 ```
 
-Testnet contract addresses (Sepolia, chain ID 11155111):
+Testnet contract addresses (Robinhood Chain testnet, chain ID `46630` — from `deployments/46630.json`):
 
 ```
-IDENTITY_ADDRESS=0xD738A4cBe525d214f86059A8328786f072D6fbe1
-REPUTATION_ADDRESS=0x0613C561C5003D7948Ea09dE2C1895965A5c3F27
-STAKING_ADDRESS=0x60347640d46B55E7dafFA8F385bc55eE2D77ee85
-CSIG_TOKEN=0x6d5E311e821c3e279dBe9833F8e33828f7716FA8
+IDENTITY_ADDRESS=0xCCF2Fd69c07EDFbc3C215cfD31e2F20FC208A16C
+REPUTATION_ADDRESS=0xbB0c9C2DF28af31905dEfEa04c80372C0909f1bF
+STAKING_ADDRESS=0x7281cf35ae9Bf56EAF5B1d0C2C8e167e50BCEC75
+CSIG_TOKEN=0x7E44aF56d14EBfd16D5D7Ba4F011b5206d487D55
 ```
+
+> Legacy Sepolia (`11155111`) addresses remain in `deployments/11155111.json` if you still need them.
 
 ## 3. Get testnet $CSIG
 
@@ -42,7 +44,7 @@ const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 const signer = new ethers.Wallet(process.env.OPERATOR_PRIVATE_KEY, provider);
 
 const csig = new ethers.Contract(
-  '0x6d5E311e821c3e279dBe9833F8e33828f7716FA8',
+  '0x7E44aF56d14EBfd16D5D7Ba4F011b5206d487D55',
   ['function faucet() external', 'function balanceOf(address) view returns (uint256)'],
   signer
 );
@@ -65,11 +67,11 @@ const agentAddress = signer.address;
 
 const { agent, privateKey } = CountersigAgent.generate({
   agentAddress,
-  chainId: 11155111,
+  chainId: 46630,
 });
 
 console.log('DID:', agent.did);
-// → did:countersig:11155111:0x...
+// → did:countersig:46630:0x...
 
 console.log('Ed25519 private key (store this):', privateKey);
 ```
@@ -96,7 +98,7 @@ const { didHash, txHash } = await registerAgent(
 );
 
 console.log('didHash:', didHash);
-console.log('tx:', `https://sepolia.etherscan.io/tx/${txHash}`);
+console.log('tx:', `https://explorer.testnet.chain.robinhood.com/tx/${txHash}`);
 ```
 
 After a few blocks the oracle will detect the `AgentRegistered` event and begin tracking the agent. The initial score will be low (age=0, activity=0) and will grow over time.
@@ -109,7 +111,7 @@ import { CountersigVerifier } from '@countersig/protocol-sdk';
 const verifier = new CountersigVerifier({
   rpcUrl: process.env.RPC_URL,
   addresses: { identity: IDENTITY_ADDRESS, reputation: REPUTATION_ADDRESS, staking: STAKING_ADDRESS },
-  chainId: 11155111,
+  chainId: 46630,
 });
 
 const identity = await verifier.getIdentity(agent.did);
@@ -129,7 +131,7 @@ This is how your agent proves its identity to another agent without a central au
 const myAgent = new CountersigAgent({
   privateKey: process.env.AGENT_ED25519_SEED,
   agentAddress,
-  chainId: 11155111,
+  chainId: 46630,
 });
 
 // Peer agent (the verifier) issues a challenge
@@ -176,6 +178,7 @@ The sealed packet will contain `agent_reputation_score`, `agent_identity_status`
 
 ## Next steps
 
+- [Robinhood Chain](robinhood-chain.md) — RPC, deploy, oracle wiring
 - [CounterAudit Integration Guide](counteraudit-integration.md) — full setup and field reference
 - [AI Framework Integration](ai-frameworks.md) — LangChain, AutoGen, CrewAI patterns
 - [Reputation Model](reputation-model.md) — how your score grows over time

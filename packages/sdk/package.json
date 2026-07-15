@@ -37,6 +37,7 @@
     "identity",
     "reputation",
     "ethereum",
+    "robinhood-chain",
     "ed25519",
     "web3",
     "nhi"
