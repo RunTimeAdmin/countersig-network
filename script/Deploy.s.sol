@@ -14,7 +14,14 @@ import "../src/CSIGToken.sol";
  * @notice Deploys all Countersig Network contracts behind UUPS proxies, wires roles,
  *         and writes the deployed addresses to deployments/{chainId}.json.
  *
- * Usage — Sepolia testnet:
+ * Usage — Robinhood Chain testnet (chain ID 46630):
+ *   forge script script/Deploy.s.sol --rpc-url robinhood_testnet --broadcast -vvvv
+ *   # optional Blockscout verify:
+ *   forge script script/Deploy.s.sol --rpc-url robinhood_testnet --broadcast \
+ *     --verify --verifier blockscout \
+ *     --verifier-url https://explorer.testnet.chain.robinhood.com/api/ -vvvv
+ *
+ * Usage — Sepolia (legacy testnet, chain ID 11155111):
  *   forge script script/Deploy.s.sol --rpc-url $SEPOLIA_RPC --broadcast --verify -vvvv
  *
  * Required env vars:

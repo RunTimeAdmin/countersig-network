@@ -1,11 +1,13 @@
 /**
  * Integration test harness for @countersig/protocol-sdk
  *
- * Requires a live Sepolia deployment. Auto-skips when env vars are absent
+ * Requires a live EVM deployment (Robinhood testnet 46630 preferred;
+ * Sepolia 11155111 still works). Auto-skips when env vars are absent
  * so CI is never blocked.
  *
- * To run after Sepolia deployment:
- *   COUNTERSIG_RPC_URL=https://eth-sepolia...
+ * To run after deploy (see docs/robinhood-chain.md):
+ *   COUNTERSIG_RPC_URL=https://rpc.testnet.chain.robinhood.com
+ *   COUNTERSIG_CHAIN_ID=46630
  *   COUNTERSIG_IDENTITY_ADDRESS=0x...
  *   COUNTERSIG_REPUTATION_ADDRESS=0x...
  *   COUNTERSIG_STAKING_ADDRESS=0x...
@@ -36,7 +38,8 @@ const OPERATOR_KEY    = process.env.COUNTERSIG_OPERATOR_PRIVATE_KEY;
 const ENABLED = !!RPC_URL && !!IDENTITY_ADDR && !!REPUTATION_ADDR && !!STAKING_ADDR && !!OPERATOR_KEY;
 const maybeDescribe = ENABLED ? describe : describe.skip;
 
-const CHAIN_ID = 11155111;
+// Default Robinhood Chain testnet; override for Sepolia (11155111) or mainnet (4663).
+const CHAIN_ID = Number(process.env.COUNTERSIG_CHAIN_ID ?? '46630');
 
 let verifier: CountersigVerifier;
 let agentAddress: string;

@@ -18,3 +18,13 @@ runs = 1000
 
 [profile.ci]
 fuzz = { runs = 5000 }
+
+# Robinhood Chain — public RPCs are rate-limited; for production, pass an Alchemy
+# URL with --rpc-url instead. Docs: https://docs.robinhood.com/chain/connecting/
+# Contract verify: use --verifier blockscout --verifier-url <explorer>/api/ (see
+# docs/robinhood-chain.md). Do not add [etherscan] entries for 46630/4663 until
+# Foundry ships native chain metadata — unknown chain IDs break `forge script`.
+[rpc_endpoints]
+robinhood_testnet = "https://rpc.testnet.chain.robinhood.com"
+robinhood_mainnet = "https://rpc.mainnet.chain.robinhood.com"
+sepolia = "${SEPOLIA_RPC_URL}"

@@ -22,6 +22,7 @@ If you're looking for MCP server support or React trust-badge components, those 
 |---|---|
 | [Ecosystem Overview](docs/ecosystem.md) | Everyone — start here to understand the full picture |
 | [Quickstart](docs/quickstart.md) | Developers — register your first agent in 10 minutes |
+| [Robinhood Chain](docs/robinhood-chain.md) | Developers — deploy / test on Robinhood Chain (46630 / 4663) |
 | [CounterAudit Integration](docs/counteraudit-integration.md) | Enterprise — embed agent identity in your audit trail |
 | [AI Framework Integration](docs/ai-frameworks.md) | Developers — LangChain, AutoGen, CrewAI, Node.js |
 | [Reputation Model](docs/reputation-model.md) | Everyone — how the 6-factor score works and grows |
