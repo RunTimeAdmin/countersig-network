@@ -127,7 +127,7 @@ const SEL = {
   epochFee: "0x41e4cfa8", balance: "0x89eba421", isCovered: "0xcb607e4f",
   depositFor: "0x1da1bbfb", withdraw: "0x040cf020",
   approve: "0x095ea7b3", allowance: "0xdd62ed3e", balanceOf: "0x70a08231", faucet: "0x57915897",
-  csig: "0x0b5ae4d9", symbol: "0x95d89b41", decimals: "0x313ce567",
+  csig: "0x0b5ae4d9", symbol: "0x95d89b41", decimals: "0x313ce567", registerAgent: "0xdb24d4ba",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -292,8 +292,12 @@ async function lookup() {
       const score = BigInt(await rpcRead(REPUTATION, SEL.getTotalScore + pad32(didHash)));
       $("regStatus").innerHTML = `<span class="pill-ok">yes — ${statusStr}</span>`;
       $("score").textContent = `${score} / 100`;
+    } else if (account) {
+      $("regStatus").innerHTML = '<span class="pill-warn">not registered</span> <button id="regBtn" class="btn btn-secondary" style="padding:4px 10px;font-size:12.5px;margin-left:8px">Register this agent</button>';
+      $("regBtn").onclick = registerAgentFlow;
+      $("score").textContent = "—";
     } else {
-      $("regStatus").innerHTML = '<span class="pill-warn">not registered</span> — see <a href="docs/quickstart.html">Quickstart</a>';
+      $("regStatus").innerHTML = '<span class="pill-warn">not registered</span> — connect a wallet to register, or see <a href="docs/quickstart.html">Quickstart</a>';
       $("score").textContent = "—";
     }
     $("feeBal").textContent = formatUnits(bal) + " " + tokenSymbol;
@@ -305,6 +309,39 @@ async function lookup() {
 }
 
 // ---- actions ----
+async function registerAgentFlow() {
+  try {
+    if (!wallet || !account) { logLine('<span class="pill-err">Connect a wallet first.</span>'); return; }
+    logLine("generating Ed25519 identity keypair in your browser…");
+    let kp;
+    try {
+      kp = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
+    } catch (_) {
+      logLine('<span class="pill-err">This browser cannot generate Ed25519 keys — use the SDK flow in the Quickstart instead.</span>');
+      return;
+    }
+    const pub = new Uint8Array(await crypto.subtle.exportKey("raw", kp.publicKey));
+    const pubHex = [...pub].map(b => b.toString(16).padStart(2, "0")).join("");
+    const pkcs8 = new Uint8Array(await crypto.subtle.exportKey("pkcs8", kp.privateKey));
+    const pkcs8b64 = btoa(String.fromCharCode(...pkcs8));
+    const blob = new Blob([
+      `Countersig agent identity key (Ed25519, private key as PKCS8 base64)\n` +
+      `agent:      ${currentAgent}\n` +
+      `did:        did:countersig:${CHAIN_ID}:${currentAgent}\n` +
+      `public key: 0x${pubHex}\n` +
+      `private key (KEEP SECRET — it signs auth challenges for this agent):\n${pkcs8b64}\n`,
+    ], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `countersig-agent-key-${currentAgent.slice(0, 10)}.txt`;
+    a.click();
+    logLine(`key file downloaded — keep it safe. pubkey 0x${pubHex.slice(0, 16)}…`);
+    logLine("registering agent (your wallet becomes the operator)…");
+    await sendTx(IDENTITY, SEL.registerAgent + encAddr(currentAgent) + pubHex);
+    await lookup();
+  } catch (e) { logLine(`<span class="pill-err">${e.message}</span>`); }
+}
+
 async function deposit() {
   try {
     if (!currentDidHash) await lookup();
