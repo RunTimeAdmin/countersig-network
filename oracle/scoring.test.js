@@ -93,11 +93,33 @@ test('computeScore: new agent with no activity = age+community only', () => {
 });
 
 test('computeScore: total never exceeds 100', () => {
-  // Max possible: 30+25+20+0+5+0 = 80 (external and propagation stubs at 0)
+  // Max without external: 30+25+20+0+5+0 = 80 (propagation stub at 0)
   const registeredAt = Math.floor(Date.now() / 1000) - 365 * 86400;
   const s = computeScore({ registeredAt, attestations: { successful: 300, total: 300 }, flags: 0 });
   assert.ok(s.total <= 100);
   assert.equal(s.total, 80);
+});
+
+test('computeScore: externalScore is included in the total', () => {
+  const registeredAt = Math.floor(Date.now() / 1000);
+  const s = computeScore({ registeredAt, attestations: { successful: 0, total: 0 }, flags: 0, externalScore: 12 });
+  assert.equal(s.externalScore, 12);
+  assert.equal(s.total, 17); // 12 external + 5 community
+});
+
+test('computeScore: externalScore clamped to the 0-15 cap', () => {
+  const registeredAt = Math.floor(Date.now() / 1000);
+  const over = computeScore({ registeredAt, attestations: { successful: 0, total: 0 }, flags: 0, externalScore: 99 });
+  assert.equal(over.externalScore, 15);
+  const under = computeScore({ registeredAt, attestations: { successful: 0, total: 0 }, flags: 0, externalScore: -5 });
+  assert.equal(under.externalScore, 0);
+});
+
+test('computeScore: with external, max total is 95', () => {
+  // 30+25+20+15+5+0 = 95 (propagation still a stub)
+  const registeredAt = Math.floor(Date.now() / 1000) - 365 * 86400;
+  const s = computeScore({ registeredAt, attestations: { successful: 300, total: 300 }, flags: 0, externalScore: 15 });
+  assert.equal(s.total, 95);
 });
 
 test('computeScore: slashed-like scenario (high flags)', () => {

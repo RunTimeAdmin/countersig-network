@@ -92,6 +92,7 @@ function pruneAgent(didHash) {
 async function getAgentInfo(didHash) {
   const id = await identityContract.getIdentity(didHash);
   return {
+    operator: id.operator,
     registeredAt: Number(id.registeredAt),
     status: Number(id.status),
   };

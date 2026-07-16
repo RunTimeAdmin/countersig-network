@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const http = require('http');
 const chain = require('./chain');
+const external = require('./external');
 const { computeScore } = require('./scoring');
 const { decideAction } = require('./epoch-policy');
 const { json, readBody, isAuthorized, parseScorePath, rateLimited } = require('./http-helpers');
@@ -29,6 +30,12 @@ const cfg = {
   // Optional: CountersigEpochFees address. When set (and its on-chain epochFee > 0),
   // the oracle only scores agents with fee coverage and charges them per epoch.
   feeRegistryAddress: process.env.FEE_REGISTRY_ADDRESS || '',
+  // Optional: ERC-8004 registries (typically Base Sepolia) for the externalScore
+  // factor. When all three are set, linked agents get an external-trust score from
+  // their 8004 feedback; unset leaves externalScore at 0. See external.js.
+  externalRpc:        process.env.EXTERNAL_RPC || '',
+  externalIdentity:   process.env.EXTERNAL_IDENTITY_ADDRESS || '',
+  externalReputation: process.env.EXTERNAL_REPUTATION_ADDRESS || '',
 };
 
 if (!cfg.rpcUrl || !cfg.privateKey || !cfg.identityAddress || !cfg.reputationAddress) {
@@ -37,11 +44,12 @@ if (!cfg.rpcUrl || !cfg.privateKey || !cfg.identityAddress || !cfg.reputationAdd
 }
 
 chain.init(cfg);
+external.init(cfg);
 
 // ---- Persistent state ------------------------------------------------------
 // attestations/flags drive score factors that accumulate and cannot be
 // recomputed from chain, so they are persisted to a mounted volume. See store.js.
-const { attestations, flags, load: loadState, persist: persistState } = require('./store');
+const { attestations, flags, links, load: loadState, persist: persistState } = require('./store');
 
 // ---- Epoch -----------------------------------------------------------------
 
@@ -110,7 +118,7 @@ async function runEpochInner() {
   );
 
   // Phase 2: writes share the oracle wallet's nonce, so they stay sequential.
-  for (const { didHash, registeredAt, status, pending, covered, error } of agentInfos) {
+  for (const { didHash, operator, registeredAt, status, pending, covered, error } of agentInfos) {
     if (error) {
       console.error(`[oracle]   ${didHash.slice(0, 10)}… error: ${error.message}`);
       continue;
@@ -153,7 +161,13 @@ async function runEpochInner() {
 
       const att       = attestations.get(didHash) ?? { successful: 0, total: 0 };
       const flagCount = flags.get(didHash) ?? 0;
-      const scores    = computeScore({ registeredAt, attestations: att, flags: flagCount });
+      // externalScore: only for agents linked to an ERC-8004 identity they own.
+      // Ownership is re-verified inside externalScoreFor; any failure yields 0.
+      const linkedId  = links.get(didHash);
+      const externalScore = (external.configured() && linkedId !== undefined)
+        ? await external.externalScoreFor(linkedId, operator)
+        : 0;
+      const scores    = computeScore({ registeredAt, attestations: att, flags: flagCount, externalScore });
       const txHash    = await chain.proposeScore(didHash, scores);
 
       console.log(`[oracle]   ${didHash.slice(0, 10)}… proposed score=${scores.total}/100 tx=${txHash.slice(0, 10)}…`);
@@ -231,15 +245,44 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // POST /link  — body: { didHash, agentId } — link a Countersig agent to its
+  // ERC-8004 identity so its 8004 feedback drives externalScore. Accepted only
+  // if the 8004 agent NFT is owned by the same wallet as the Countersig operator.
+  if (req.method === 'POST' && pathname === '/link') {
+    if (!isAuthorized(req.headers, cfg.adminToken)) return json(res, 401, { error: 'Unauthorized' });
+    if (rateLimited(clientKey(req))) return json(res, 429, { error: 'Rate limited' });
+    try {
+      const { didHash, agentId } = await readBody(req);
+      if (!didHash || agentId === undefined || agentId === null) {
+        return json(res, 400, { error: 'didHash and agentId required' });
+      }
+      if (!external.configured()) return json(res, 400, { error: 'external (ERC-8004) registry not configured' });
+      const { operator } = await chain.getAgentInfo(didHash);
+      const owns = await external.verifyOwnership(String(agentId), operator);
+      if (!owns) {
+        return json(res, 403, { error: 'ERC-8004 agent is not owned by this agent\'s Countersig operator; refusing to link' });
+      }
+      links.set(didHash, String(agentId));
+      persistState();
+      return json(res, 200, { didHash, agentId: String(agentId), operator, linked: true });
+    } catch (err) {
+      return json(res, 400, { error: err.message });
+    }
+  }
+
   // GET /score/:didHash  — preview computed score without writing to chain
   const didHash = parseScorePath(pathname);
   if (req.method === 'GET' && didHash) {
     try {
-      const { registeredAt, status } = await chain.getAgentInfo(didHash);
+      const { operator, registeredAt, status } = await chain.getAgentInfo(didHash);
       const att       = attestations.get(didHash) ?? { successful: 0, total: 0 };
       const flagCount = flags.get(didHash) ?? 0;
-      const scores    = computeScore({ registeredAt, attestations: att, flags: flagCount });
-      return json(res, 200, { didHash, status, scores, attestations: att, flags: flagCount });
+      const linkedId  = links.get(didHash);
+      const externalScore = (external.configured() && linkedId !== undefined)
+        ? await external.externalScoreFor(linkedId, operator)
+        : 0;
+      const scores    = computeScore({ registeredAt, attestations: att, flags: flagCount, externalScore });
+      return json(res, 200, { didHash, status, scores, attestations: att, flags: flagCount, erc8004AgentId: linkedId ?? null });
     } catch (err) {
       return json(res, 500, { error: err.message });
     }

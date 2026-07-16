@@ -19,13 +19,16 @@ const STATE_PATH = process.env.ORACLE_STATE_PATH || '/data/oracle-state.json';
 const attestations = new Map();
 // didHash → unresolved flag count
 const flags = new Map();
+// didHash → ERC-8004 agentId (string) this agent is linked to (ownership-verified at link time)
+const links = new Map();
 
 function load() {
   try {
     const parsed = JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
     for (const [k, v] of Object.entries(parsed.attestations || {})) attestations.set(k, v);
     for (const [k, v] of Object.entries(parsed.flags || {})) flags.set(k, v);
-    console.log(`[oracle] state loaded from ${STATE_PATH}: ${attestations.size} attestations, ${flags.size} flags`);
+    for (const [k, v] of Object.entries(parsed.links || {})) links.set(k, v);
+    console.log(`[oracle] state loaded from ${STATE_PATH}: ${attestations.size} attestations, ${flags.size} flags, ${links.size} links`);
   } catch (err) {
     if (err.code === 'ENOENT') {
       console.log(`[oracle] no prior state at ${STATE_PATH}, starting fresh`);
@@ -42,6 +45,7 @@ function persist() {
     fs.writeFileSync(tmp, JSON.stringify({
       attestations: Object.fromEntries(attestations),
       flags: Object.fromEntries(flags),
+      links: Object.fromEntries(links),
       savedAt: new Date().toISOString(),
     }));
     fs.renameSync(tmp, STATE_PATH);
@@ -50,4 +54,4 @@ function persist() {
   }
 }
 
-module.exports = { attestations, flags, load, persist };
+module.exports = { attestations, flags, links, load, persist };

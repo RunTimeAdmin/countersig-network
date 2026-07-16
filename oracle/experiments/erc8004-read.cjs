@@ -18,6 +18,7 @@
 try { require('truststore').inject_into_ssl(); } catch (_) {} // desktop TLS intercept; no-op on Linux
 
 const { ethers } = require('ethers');
+const { TAG_NORMALIZERS } = require('../external'); // single source of truth for the normalization map
 
 const RPC = process.env.BASE_SEPOLIA_RPC || 'https://sepolia.base.org';
 // Canonical ERC-8004 testnet singletons (same vanity addresses on every chain)
@@ -31,21 +32,9 @@ const REP_ABI = [
 ];
 const ID_ABI = ['function ownerOf(uint256) view returns (address)'];
 
-// Countersig's opinionated normalization: map a recognized feedback tag to a
-// 0..1 rating. This map IS the product — it is the judgment ERC-8004 leaves
-// out. Unrecognized tags (rating systems, raw counts) are excluded, not
-// guessed, so the score stays meaningful. Extend deliberately, never blindly.
-const clamp01 = (x) => Math.max(0, Math.min(1, x));
-const TAG_NORMALIZERS = {
-  quality:     (v) => clamp01(v / 100),
-  trustscore:  (v) => clamp01(v / 100),
-  reliability: (v) => clamp01(v / 100),
-  accuracy:    (v) => clamp01(v / 100),
-  'win-rate':  (v) => clamp01(v),
-  rating:      (v) => clamp01(v / 5),
-  'e2e-test':  (v) => clamp01(v / 5),
-  stars:       (v) => clamp01(v / 5),
-};
+// The normalization map (TAG_NORMALIZERS) lives in ../external.js so the oracle
+// and this experiment agree on the judgment. This script adds a display of the
+// recognized/excluded breakdown to make the heterogeneity visible.
 
 async function readAgentFeedback(rep, agentId) {
   const clients = Array.from(await rep.getClients(agentId));

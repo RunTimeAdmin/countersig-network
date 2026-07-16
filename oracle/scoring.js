@@ -30,16 +30,19 @@ function communityScore(unresolvedFlags) {
 }
 
 /**
- * @param {{ registeredAt: number, attestations: { successful: number, total: number }, flags: number }} opts
+ * @param {{ registeredAt: number, attestations: { successful: number, total: number }, flags: number, externalScore?: number }} opts
  * @returns {{ feeScore, successScore, ageScore, externalScore, communityScore, propagationScore, total }}
  */
-function computeScore({ registeredAt, attestations, flags }) {
+function computeScore({ registeredAt, attestations, flags, externalScore = 0 }) {
   const { successful = 0, total = 0 } = attestations;
 
   const fs = feeScore(total);
   const ss = successScore(successful, total);
   const as = ageScore(registeredAt);
-  const es = 0;  // SAID / Gitcoin Passport — Phase 2
+  // externalScore comes from ERC-8004 cross-protocol feedback (see external.js),
+  // 0 when unlinked or unconfigured. Clamp to the contract's cap so a bad input
+  // can never make proposeReputation revert.
+  const es = Math.max(0, Math.min(15, Math.trunc(externalScore) || 0));
   const cs = communityScore(flags ?? 0);
   const ps = 0;  // Trust propagation graph — Phase 2
 
