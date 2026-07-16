@@ -135,6 +135,32 @@ let account = null, currentDidHash = null, currentAgent = null;
 // fee token metadata, read from the chain at load (CSIG on testnet, USDC/WETH on mainnet)
 let tokenAddr = CSIG, tokenSymbol = "tokens", tokenDecimals = 18n;
 
+// ---- wallet discovery (EIP-6963) ----
+// Multiple extensions fight over window.ethereum (Phantom grabs it aggressively
+// and can't add custom chains). Discover every injected wallet and let the user
+// pick instead of trusting whoever won the injection race.
+let wallet = null;
+const discovered = new Map(); // uuid -> {info, provider}
+window.addEventListener("eip6963:announceProvider", (e) => discovered.set(e.detail.info.uuid, e.detail));
+window.dispatchEvent(new Event("eip6963:requestProvider"));
+
+function candidateWallets() {
+  let list;
+  if (discovered.size) {
+    list = [...discovered.values()].map(d => ({ name: d.info.name, provider: d.provider, rdns: d.info.rdns || "" }));
+  } else {
+    const eth = window.ethereum;
+    if (!eth) return [];
+    const provs = eth.providers?.length ? eth.providers : [eth];
+    list = provs.map(p => ({
+      name: p.isMetaMask ? "MetaMask" : p.isPhantom ? "Phantom" : p.isRabby ? "Rabby" : "Injected wallet",
+      provider: p, rdns: "",
+    }));
+  }
+  // MetaMask first: it handles custom chains; Phantom does not
+  return list.sort((a, b) => (b.rdns === "io.metamask" || b.name === "MetaMask") - (a.rdns === "io.metamask" || a.name === "MetaMask"));
+}
+
 function logLine(html) {
   const el = $("log");
   el.innerHTML += (el.innerHTML ? "\n" : "") + html;
@@ -179,14 +205,14 @@ async function rpcRead(to, data) {
   return j.result;
 }
 async function sendTx(to, data) {
-  const hash = await window.ethereum.request({
+  const hash = await wallet.request({
     method: "eth_sendTransaction",
     params: [{ from: account, to, data }],
   });
   logLine(`tx sent ${txLink(hash)} — waiting…`);
   for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 2500));
-    const rec = await window.ethereum.request({ method: "eth_getTransactionReceipt", params: [hash] });
+    const rec = await wallet.request({ method: "eth_getTransactionReceipt", params: [hash] });
     if (rec) {
       if (rec.status === "0x1") { logLine(`<span class="pill-ok">confirmed</span> in block ${parseInt(rec.blockNumber, 16)}`); return; }
       throw new Error("transaction reverted");
@@ -197,26 +223,47 @@ async function sendTx(to, data) {
 
 // ---- wallet ----
 async function connect() {
-  if (!window.ethereum) { logLine('<span class="pill-err">No wallet found — install MetaMask.</span>'); return; }
-  const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-  account = accounts[0];
-  const chain = await window.ethereum.request({ method: "eth_chainId" });
-  if (chain !== CHAIN_HEX) {
-    try {
-      await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_HEX }] });
-    } catch (e) {
-      await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{
-        chainId: CHAIN_HEX, chainName: "Robinhood Chain Testnet",
-        nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-        rpcUrls: [RPC], blockExplorerUrls: [EXPLORER],
-      }]});
-    }
+  const cands = candidateWallets();
+  if (!cands.length) { logLine('<span class="pill-err">No wallet found — install MetaMask.</span>'); return; }
+  if (cands.length === 1) return connectWith(cands[0]);
+  const el = $("walletStatus");
+  el.textContent = "choose wallet: ";
+  for (const c of cands) {
+    const b = document.createElement("button");
+    b.className = "btn btn-secondary";
+    b.style.cssText = "padding:5px 12px;font-size:13px;margin-left:8px";
+    b.textContent = c.name;
+    b.onclick = () => connectWith(c);
+    el.appendChild(b);
   }
-  $("walletStatus").innerHTML = `<span class="pill-ok">${account.slice(0, 6)}…${account.slice(-4)} on 46630</span>`;
-  ["depositBtn", "withdrawBtn", "faucetBtn"].forEach(id => $(id).disabled = false);
-  if (!$("agentAddr").value) $("agentAddr").value = account;
-  refreshCsigBalance();
-  lookup();
+}
+
+async function connectWith(c) {
+  try {
+    wallet = c.provider;
+    const accounts = await wallet.request({ method: "eth_requestAccounts" });
+    account = accounts[0];
+    const chain = await wallet.request({ method: "eth_chainId" });
+    if (chain !== CHAIN_HEX) {
+      try {
+        await wallet.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_HEX }] });
+      } catch (e) {
+        await wallet.request({ method: "wallet_addEthereumChain", params: [{
+          chainId: CHAIN_HEX, chainName: "Robinhood Chain Testnet",
+          nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+          rpcUrls: [RPC], blockExplorerUrls: [EXPLORER],
+        }]});
+      }
+    }
+    $("walletStatus").innerHTML = `<span class="pill-ok">${c.name}: ${account.slice(0, 6)}…${account.slice(-4)} on 46630</span>`;
+    ["depositBtn", "withdrawBtn", "faucetBtn"].forEach(id => $(id).disabled = false);
+    if (!$("agentAddr").value) $("agentAddr").value = account;
+    refreshCsigBalance();
+    lookup();
+  } catch (e) {
+    wallet = null;
+    logLine(`<span class="pill-err">${c.name}: ${e.message} — this chain needs a wallet that supports custom networks (MetaMask does; Phantom does not).</span>`);
+  }
 }
 
 async function refreshCsigBalance() {
