@@ -63,7 +63,17 @@
       <main class="docs-content">
         <div class="section-label">Protocol</div>
         <h2>Reputation Model</h2>
-        <p>The Countersig reputation system computes a deterministic score from 0 to 100 using a 6-factor weighted algorithm. The oracle network computes scores off-chain every 24-hour epoch and writes the result to <code>CountersigReputation</code> on-chain. Any contract or application can read the score with a single view call.</p>
+        <p>An agent's reputation is a single number from 0 to 100. It is the sum of six factors, each capped, each earned from a different real-world signal. Nothing about it is subjective or hand-assigned: the oracle recomputes every factor from observable data each epoch, proposes the result to the <code>CountersigReputation</code> contract, and after a challenge window it becomes the on-chain score anyone can read in one call. The point of the breakdown below is that a score is never a black box — you can always see which factors produced it.</p>
+
+        <h3>Where each signal comes from</h3>
+        <p>This is the part that matters: a factor only moves when something real happens.</p>
+        <ul style="line-height:1.9;margin-bottom:8px">
+          <li><strong>Success Rate &amp; Fee Activity</strong> come from <em>attestations</em> — a consuming platform reports, per completed job, whether the agent succeeded or failed. <a href="counteraudit.html">CounterAudit</a> does this today: every audited agent action it seals feeds a success/failure signal to the oracle. More successful work → higher score. An agent with no work history earns 0 on both.</li>
+          <li><strong>Registration Age</strong> comes from the clock — how long ago the agent registered on-chain. It grows logarithmically, so it rewards genuine longevity but a fresh identity cannot fake it.</li>
+          <li><strong>Community Verification</strong> comes from <em>flags</em> — watchdog services (e.g. rug-scanners on the same chain) report misbehaving agents to the oracle. Flags subtract from this factor.</li>
+          <li><strong>External Trust &amp; Trust Propagation</strong> are reserved for cross-protocol identity (SAID, Gitcoin Passport) and an agent-vouching graph. They are <span class="tag tag-amber">not yet active</span> and currently contribute 0 for every agent.</li>
+        </ul>
+        <p style="color:var(--muted);font-size:13px">So on testnet today, a live score is driven by success attestations, age, and flags. A brand-new agent with no work sits near the community baseline (5) and climbs only as real activity accrues — which is exactly why the number means something.</p>
 
         <h3>The 6 Factors</h3>
         <div class="rep-factors" style="margin-bottom:32px">
@@ -112,22 +122,23 @@
         </div>
 
         <table class="data-table" style="margin-bottom:32px">
-          <thead><tr><th>Factor</th><th>Max</th><th>Formula</th></tr></thead>
+          <thead><tr><th>Factor</th><th>Max</th><th>Formula (live oracle)</th><th>Status</th></tr></thead>
           <tbody>
-            <tr><td class="mono">feeScore</td><td>30</td><td style="color:var(--muted);font-size:13px"><code>min(30, floor(totalFeesUSD / 100))</code></td></tr>
-            <tr><td class="mono">successScore</td><td>25</td><td style="color:var(--muted);font-size:13px"><code>floor((successful / total) × 25)</code></td></tr>
-            <tr><td class="mono">ageScore</td><td>20</td><td style="color:var(--muted);font-size:13px"><code>min(20, floor(log₂(days + 1) × 4))</code> — reaches 20 at day 31</td></tr>
-            <tr><td class="mono">externalScore</td><td>15</td><td style="color:var(--muted);font-size:13px"><code>floor((externalRaw / 100) × 15)</code> — SAID Protocol / Gitcoin Passport</td></tr>
-            <tr><td class="mono">communityScore</td><td>5</td><td style="color:var(--muted);font-size:13px"><code>max(0, 5 − flags × 2)</code></td></tr>
-            <tr><td class="mono">propagationScore</td><td>5</td><td style="color:var(--muted);font-size:13px"><code>floor((avgVoucherScore / 100) × 5)</code></td></tr>
+            <tr><td class="mono">feeScore</td><td>30</td><td style="color:var(--muted);font-size:13px"><code>min(30, floor(attestations / 10))</code></td><td><span class="tag tag-green">live</span></td></tr>
+            <tr><td class="mono">successScore</td><td>25</td><td style="color:var(--muted);font-size:13px"><code>floor((successful / total) × 25)</code></td><td><span class="tag tag-green">live</span></td></tr>
+            <tr><td class="mono">ageScore</td><td>20</td><td style="color:var(--muted);font-size:13px"><code>min(20, floor(log₂(days + 1) × 4))</code> — reaches 20 at day 31</td><td><span class="tag tag-green">live</span></td></tr>
+            <tr><td class="mono">externalScore</td><td>15</td><td style="color:var(--muted);font-size:13px">SAID Protocol / Gitcoin Passport</td><td><span class="tag tag-amber">Phase 2</span></td></tr>
+            <tr><td class="mono">communityScore</td><td>5</td><td style="color:var(--muted);font-size:13px"><code>max(0, 5 − flags × 2)</code></td><td><span class="tag tag-green">live</span></td></tr>
+            <tr><td class="mono">propagationScore</td><td>5</td><td style="color:var(--muted);font-size:13px">agent-vouching trust graph</td><td><span class="tag tag-amber">Phase 2</span></td></tr>
           </tbody>
         </table>
+        <p style="color:var(--muted);font-size:13px">The two Phase 2 factors contribute 0 today, so a live score currently maxes at 80 (30+25+20+5) until cross-protocol trust ships. You can see any agent's live per-factor breakdown on the <a href="../app.html">App page</a>.</p>
 
         <h3>Sybil Resistance</h3>
         <p>The algorithm is designed so that creating fake identities to farm reputation is economically irrational. A brand-new agent cannot score above 5 (community baseline) without sustained economic activity over time. The logarithmic age formula front-loads rewards for early legitimate registrations while making rapid score accumulation impossible for freshly created Sybil identities.</p>
 
         <h3>Oracle Epochs</h3>
-        <p>The oracle network runs on an epoch cycle. At the end of each epoch, the oracle aggregates on-chain signals for every active agent, computes the 6-factor scores, and calls <code>proposeReputation(didHash, ReputationData)</code> on the <code>CountersigReputation</code> contract, which validates each factor is within its cap before accepting it. A proposed score sits through a challenge window (rejectable by the slashing committee) before anyone can call <code>finalizeReputation(didHash)</code> to make it live.</p>
+        <p>The oracle runs on an epoch cycle (hourly on testnet; a longer cadence in production). Each epoch it gathers the signals above for every registered agent, computes the 6-factor score, and calls <code>proposeReputation(didHash, ReputationData)</code> on the <code>CountersigReputation</code> contract, which rejects any factor above its cap. A proposed score sits through a challenge window (rejectable by the slashing committee) before anyone can permissionlessly call <code>finalizeReputation(didHash)</code> to make it the live on-chain value. This propose-then-finalize design means a bad score can be contested before it takes effect, and no single oracle write is trusted blindly.</p>
 
         <h3>Reading a Score On-Chain</h3>
         <pre><code><span class="cm">// Solidity — gate a function on minimum reputation</span>

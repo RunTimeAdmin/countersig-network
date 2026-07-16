@@ -71,6 +71,7 @@
       <dt>didHash</dt><dd id="didHash"></dd>
       <dt>Registered</dt><dd id="regStatus"></dd>
       <dt>Reputation score</dt><dd id="score"></dd>
+      <dt>Score breakdown</dt><dd id="breakdown" style="font-size:12px">—</dd>
       <dt>Fee balance</dt><dd id="feeBal"></dd>
       <dt>Covered this epoch</dt><dd id="covered"></dd>
     </dl>
@@ -128,7 +129,13 @@ const SEL = {
   depositFor: "0x1da1bbfb", withdraw: "0x040cf020",
   approve: "0x095ea7b3", allowance: "0xdd62ed3e", balanceOf: "0x70a08231", faucet: "0x57915897",
   csig: "0x0b5ae4d9", symbol: "0x95d89b41", decimals: "0x313ce567", registerAgent: "0xdb24d4ba",
+  getReputation: "0xd14519d2",
 };
+// factor label, on-chain word index, and max — mirrors CountersigReputation.ReputationData
+const FACTORS = [
+  ["fee", 0, 30], ["success", 1, 25], ["age", 2, 20],
+  ["external", 3, 15], ["community", 4, 5], ["propagation", 5, 5],
+];
 
 const $ = (id) => document.getElementById(id);
 let account = null, currentDidHash = null, currentAgent = null;
@@ -292,13 +299,20 @@ async function lookup() {
       const score = BigInt(await rpcRead(REPUTATION, SEL.getTotalScore + pad32(didHash)));
       $("regStatus").innerHTML = `<span class="pill-ok">yes — ${statusStr}</span>`;
       $("score").textContent = `${score} / 100`;
+      const rep = await rpcRead(REPUTATION, SEL.getReputation + pad32(didHash));
+      $("breakdown").innerHTML = FACTORS
+        .map(([name, i, max]) => `${name} ${Number(BigInt(word(rep, i)))}/${max}`)
+        .join(" &nbsp;·&nbsp; ")
+        + ' &nbsp; <a href="docs/reputation.html">what is this?</a>';
     } else if (account) {
       $("regStatus").innerHTML = '<span class="pill-warn">not registered</span> <button id="regBtn" class="btn btn-secondary" style="padding:4px 10px;font-size:12.5px;margin-left:8px">Register this agent</button>';
       $("regBtn").onclick = registerAgentFlow;
       $("score").textContent = "—";
+      $("breakdown").textContent = "—";
     } else {
       $("regStatus").innerHTML = '<span class="pill-warn">not registered</span> — connect a wallet to register, or see <a href="docs/quickstart.html">Quickstart</a>';
       $("score").textContent = "—";
+      $("breakdown").textContent = "—";
     }
     $("feeBal").textContent = formatUnits(bal) + " " + tokenSymbol;
     $("covered").innerHTML = covered ? '<span class="pill-ok">yes</span>' : '<span class="pill-err">no — deposit below</span>';

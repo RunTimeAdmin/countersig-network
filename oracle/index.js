@@ -38,14 +38,10 @@ if (!cfg.rpcUrl || !cfg.privateKey || !cfg.identityAddress || !cfg.reputationAdd
 
 chain.init(cfg);
 
-// ---- In-memory state -------------------------------------------------------
-// Production would use Postgres or SQLite. For testnet, memory is fine — the
-// epoch recomputes everything from on-chain data on restart anyway.
-
-// didHash → { successful: number, total: number }
-const attestations = new Map();
-// didHash → number (unresolved flag count)
-const flags = new Map();
+// ---- Persistent state ------------------------------------------------------
+// attestations/flags drive score factors that accumulate and cannot be
+// recomputed from chain, so they are persisted to a mounted volume. See store.js.
+const { attestations, flags, load: loadState, persist: persistState } = require('./store');
 
 // ---- Epoch -----------------------------------------------------------------
 
@@ -213,6 +209,7 @@ const server = http.createServer(async (req, res) => {
       att.total++;
       if (success) att.successful++;
       attestations.set(didHash, att);
+      persistState();
       return json(res, 200, { didHash, ...att });
     } catch (err) {
       return json(res, 400, { error: err.message });
@@ -227,6 +224,7 @@ const server = http.createServer(async (req, res) => {
       const { didHash } = await readBody(req);
       if (!didHash) return json(res, 400, { error: 'didHash required' });
       flags.set(didHash, (flags.get(didHash) ?? 0) + 1);
+      persistState();
       return json(res, 200, { didHash, flags: flags.get(didHash) });
     } catch (err) {
       return json(res, 400, { error: err.message });
@@ -255,6 +253,7 @@ server.listen(cfg.port, cfg.host, () => {
     console.warn('[oracle] WARNING: ORACLE_ADMIN_TOKEN is unset — /attest, /flag, and /epoch are UNAUTHENTICATED. Set a token before exposing this service.');
   }
   console.log(`[oracle] HTTP on ${cfg.host}:${cfg.port}  epoch every ${cfg.epochMs / 3_600_000}h`);
+  loadState();
   runEpoch();
   setInterval(runEpoch, cfg.epochMs);
 });
