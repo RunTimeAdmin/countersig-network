@@ -32,35 +32,38 @@ If you're looking for MCP server support or React trust-badge components, those 
 
 ## Protocol Architecture
 
+Countersig is the computed-reputation and staked-slashing layer on top of the
+ERC-8004 identity and feedback registries. See [docs/architecture.md](docs/architecture.md)
+for the full signal flow.
+
 ```mermaid
 graph TB
-    subgraph offchain["Off-Chain Verification Layer"]
-        A["Agent Node A\nEd25519 Keys"]
-        B["Agent Node B\nEd25519 Keys"]
-        U["User / DApp"]
+    subgraph sources["Signal sources"]
+        CA["CounterAudit<br/>work-outcome attestations"]
+        WD["Watchdog scanners<br/>rug / abuse flags"]
     end
 
-    subgraph did_layer["Decentralized Identity Layer"]
-        R["DID Resolver\ndid:countersig method"]
+    subgraph erc8004["ERC-8004 · identity + feedback (canonical)"]
+        EID["Identity Registry<br/>agent identity"]
+        EREP["Reputation Registry<br/>raw feedback"]
     end
 
-    subgraph onchain["On-Chain State Layer (EVM)"]
-        ID["CountersigIdentity\nDID anchoring · pubkey storage\nAgentStatus state machine"]
-        REP["CountersigReputation\n6-factor score store\noracle-written · slash-zeroed"]
-        ST["CountersigStaking\nagent bonds (WETH/USDC at mainnet)\ncommittee slash · challenge period"]
+    subgraph countersig["Countersig · the trust layer"]
+        OR(["Reputation Oracle<br/>computes the score"])
+        REP["CountersigReputation<br/>computed-score anchor"]
+        ST["CountersigStaking<br/>bonds + slashing"]
     end
 
-    subgraph oracle["Reputation Oracle (live)"]
-        OC["Reputation Oracle\nhourly epoch aggregation\nattestation + flag feeds"]
-    end
+    CONS["SDK · consumers · on-chain readers"]
 
-    A <-->|"PKI challenge-response"| B
-    B -->|"resolve DID"| R
-    R -->|"reads pubkey + status"| ID
-    U -->|"query score"| REP
-    OC -->|"propose → finalize"| REP
-    ST -->|"updateStatus(Slashed)"| ID
-    ST -->|"zeroReputation()"| REP
+    CA -->|"success / fail"| OR
+    WD -->|"flags"| OR
+    EID -->|"identity + age"| OR
+    EREP -->|"feedback to externalScore"| OR
+    OR -->|"propose / finalize"| REP
+    ST -->|"slash · zero score"| REP
+    CA -->|"giveFeedback"| EREP
+    REP -->|"getTotalScore · meetsThreshold"| CONS
 ```
 
 ---
