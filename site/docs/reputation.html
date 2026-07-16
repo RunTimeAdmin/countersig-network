@@ -71,9 +71,10 @@
           <li><strong>Success Rate &amp; Fee Activity</strong> come from <em>attestations</em> — a consuming platform reports, per completed job, whether the agent succeeded or failed. <a href="counteraudit.html">CounterAudit</a> does this today: every audited agent action it seals feeds a success/failure signal to the oracle. More successful work → higher score. An agent with no work history earns 0 on both.</li>
           <li><strong>Registration Age</strong> comes from the clock — how long ago the agent registered on-chain. It grows logarithmically, so it rewards genuine longevity but a fresh identity cannot fake it.</li>
           <li><strong>Community Verification</strong> comes from <em>flags</em> — watchdog services (e.g. rug-scanners on the same chain) report misbehaving agents to the oracle. Flags subtract from this factor.</li>
-          <li><strong>External Trust &amp; Trust Propagation</strong> are reserved for cross-protocol identity (SAID, Gitcoin Passport) and an agent-vouching graph. They are <span class="tag tag-amber">not yet active</span> and currently contribute 0 for every agent.</li>
+          <li><strong>External Trust</strong> is <span class="tag tag-green">live via ERC-8004</span>. An agent that links its Countersig identity to an <a href="https://eips.ethereum.org/EIPS/eip-8004" target="_blank" rel="noopener">ERC-8004</a> agent it owns gets an external-trust score computed from that agent's on-chain feedback — the oracle normalizes the recognized rating dimensions and excludes ones it can't interpret. Unlinked agents score 0 here.</li>
+          <li><strong>Trust Propagation</strong> (an agent-vouching graph) is <span class="tag tag-amber">not yet active</span> and contributes 0 for every agent.</li>
         </ul>
-        <p style="color:var(--muted);font-size:13px">So on testnet today, a live score is driven by success attestations, age, and flags. A brand-new agent with no work sits near the community baseline (5) and climbs only as real activity accrues — which is exactly why the number means something.</p>
+        <p style="color:var(--muted);font-size:13px">So on testnet today, a live score is driven by success attestations, age, flags, and ERC-8004 external trust. A brand-new agent with no work sits near the community baseline (5) and climbs only as real activity accrues — which is exactly why the number means something.</p>
 
         <h3>The 6 Factors</h3>
         <div class="rep-factors" style="margin-bottom:32px">
@@ -127,12 +128,12 @@
             <tr><td class="mono">feeScore</td><td>30</td><td style="color:var(--muted);font-size:13px"><code>min(30, floor(attestations / 10))</code></td><td><span class="tag tag-green">live</span></td></tr>
             <tr><td class="mono">successScore</td><td>25</td><td style="color:var(--muted);font-size:13px"><code>floor((successful / total) × 25)</code></td><td><span class="tag tag-green">live</span></td></tr>
             <tr><td class="mono">ageScore</td><td>20</td><td style="color:var(--muted);font-size:13px"><code>min(20, floor(log₂(days + 1) × 4))</code> — reaches 20 at day 31</td><td><span class="tag tag-green">live</span></td></tr>
-            <tr><td class="mono">externalScore</td><td>15</td><td style="color:var(--muted);font-size:13px">SAID Protocol / Gitcoin Passport</td><td><span class="tag tag-amber">Phase 2</span></td></tr>
+            <tr><td class="mono">externalScore</td><td>15</td><td style="color:var(--muted);font-size:13px">Normalized ERC-8004 feedback (linked agents)</td><td><span class="tag tag-green">live</span></td></tr>
             <tr><td class="mono">communityScore</td><td>5</td><td style="color:var(--muted);font-size:13px"><code>max(0, 5 − flags × 2)</code></td><td><span class="tag tag-green">live</span></td></tr>
             <tr><td class="mono">propagationScore</td><td>5</td><td style="color:var(--muted);font-size:13px">agent-vouching trust graph</td><td><span class="tag tag-amber">Phase 2</span></td></tr>
           </tbody>
         </table>
-        <p style="color:var(--muted);font-size:13px">The two Phase 2 factors contribute 0 today, so a live score currently maxes at 80 (30+25+20+5) until cross-protocol trust ships. You can see any agent's live per-factor breakdown on the <a href="../app.html">App page</a>.</p>
+        <p style="color:var(--muted);font-size:13px">Only propagationScore is still inactive (0 today), so a live score currently maxes at 95 (30+25+20+15+5). externalScore is 0 unless the agent links an ERC-8004 identity it owns. You can see any agent's live per-factor breakdown on the <a href="../app.html">App page</a>.</p>
 
         <h3>Sybil Resistance</h3>
         <p>The algorithm is designed so that creating fake identities to farm reputation is economically irrational. A brand-new agent cannot score above 5 (community baseline) without sustained economic activity over time. The logarithmic age formula front-loads rewards for early legitimate registrations while making rapid score accumulation impossible for freshly created Sybil identities.</p>

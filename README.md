@@ -148,12 +148,12 @@ Scores are computed off-chain by the oracle network and written to `CountersigRe
 | Fee Activity | 30 | Attestation volume (proxy for paid activity) | `min(30, floor(attestations / 10))` | live |
 | Success Rate | 25 | Task attestations from consumers (e.g. CounterAudit) | `floor((successful / total) × 25)` | live |
 | Age | 20 | Registration timestamp | `min(20, floor(log₂(days+1) × 4))` | live |
-| External Trust | 15 | SAID Protocol / Gitcoin Passport | — | Phase 2 |
+| External Trust | 15 | Normalized ERC-8004 feedback (linked agents) | mean of recognized tags × 15 | live |
 | Community | 5 | Flags from watchdogs (e.g. HoodScan) | `max(0, 5 − flags × 2)` | live |
 | Propagation | 5 | Agent-vouching trust graph | — | Phase 2 |
 | **Total** | **100** | | | |
 
-The age formula reaches 20 around day 31 (logarithmic). The two Phase 2 factors contribute 0 today, so a live score currently maxes at 80. A new agent with no work history sits near the community baseline (5) and climbs only as real attestations and age accrue — which is what makes the number meaningful. Success/fee signals come from consuming platforms reporting job outcomes; community flags come from watchdog services reporting misbehavior. See the [Reputation Model](docs/reputation-model.md) guide for provenance detail.
+The age formula reaches 20 around day 31 (logarithmic). Only propagationScore is still inactive (0 today), so a live score currently maxes at 95; externalScore is 0 unless the agent links an ERC-8004 identity it owns. A new agent with no work history sits near the community baseline (5) and climbs only as real attestations and age accrue — which is what makes the number meaningful. Success/fee signals come from consuming platforms reporting job outcomes; community flags come from watchdog services reporting misbehavior; external trust comes from the agent's ERC-8004 feedback. See the [Reputation Model](docs/reputation-model.md) guide for provenance detail.
 
 ---
 
@@ -438,7 +438,7 @@ require(rep.meetsThreshold(didHash, 60), "insufficient reputation");
 | Phase | Timeline | Deliverables |
 |---|---|---|
 | Core Protocol | Q3 2026 | Robinhood Chain testnet (`46630`) · live reputation oracle · CounterAudit attestation + HoodScan flag feeds · `@countersig/protocol-sdk` v1.0 |
-| External Trust | Q4 2026 | SAID + Gitcoin Passport (externalScore) · agent-vouching graph (propagationScore) · oracle state persistence hardening |
+| External Trust | Q4 2026 | ~~externalScore from ERC-8004 feedback~~ **done** (linked agents, live) · agent-vouching graph (propagationScore) · deeper ERC-8004 interop (publish CounterAudit validations to the Validation Registry) |
 | Mainnet Registries | Q1 2027 | Tier-1 security audit · registry deployment on Robinhood Chain mainnet (`4663`) with bonds and scoring fees in an established asset (WETH/USDC) — **no token launch; the oracle is the product** |
 | Cross-Chain | Q2 2027 | Solana + Base state mirroring via LayerZero |
 
