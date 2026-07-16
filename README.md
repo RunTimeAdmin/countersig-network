@@ -4,9 +4,9 @@
 
 As AI agents become independent economic actors, the absence of verifiable Non-Human Identity (NHI) is a structural gap. Agents can impersonate peers, game reputation systems, and act without accountability. Countersig solves this by anchoring W3C Decentralized Identifiers on-chain, enforcing Ed25519 PKI authentication off-chain, and securing agent reputation through a staked cryptoeconomic model.
 
-> **No $CSIG token exists yet.** There has been no token generation event, no public sale, and no listing on any exchange or launchpad. Any token claiming to be "$CSIG" or "Countersig" that you find on pump.fun or elsewhere is not affiliated with this project and was not created by this team. Our brand assets were stolen and used for one such token — see [Token Economics](docs/tokenomics.md) for the actual (pre-TGE) tokenomics design, and treat this repository and [countersig.network](https://countersig.network) as the only canonical sources.
+> **There is no $CSIG token for sale — and no token launch is planned.** Countersig is an oracle and registry *service*, not a token. There has been no token generation event, no public sale, and no listing anywhere. Any tradeable token claiming to be "$CSIG" or "Countersig" on pump.fun or elsewhere is a scam and was not created by this team. Our brand assets were stolen for one such token. See [Direction: Oracle-First](docs/oracle-first.md) for why the token is deferred, and treat this repository and [countersig.network](https://countersig.network) as the only canonical sources.
 >
-> What *is* real: the protocol below is live on **Robinhood Chain testnet** (chain ID `46630`; see [`deployments/46630.json`](deployments/46630.json)), the [`@countersig/protocol-sdk`](https://www.npmjs.com/package/@countersig/protocol-sdk) is published on npm, and [CounterAudit](https://counteraudit.io) already consumes Countersig identity and reputation data in production — sealed into forensic audit packets on a live oracle. A legacy Sepolia deployment also remains. That's the actual substance behind this project; a copycat token has none of it.
+> What *is* real: the protocol below is live on **Robinhood Chain testnet** (chain ID `46630`; see [`deployments/46630.json`](deployments/46630.json)), the reputation oracle runs an hourly scoring epoch against it, the [`@countersig/protocol-sdk`](https://www.npmjs.com/package/@countersig/protocol-sdk) is published on npm, and [CounterAudit](https://counteraudit.io) both consumes Countersig scores and feeds work-outcome attestations back into them. A legacy Sepolia deployment also remains.
 
 ### This repo vs. the Countersig SaaS platform
 
@@ -26,7 +26,7 @@ If you're looking for MCP server support or React trust-badge components, those 
 | [CounterAudit Integration](docs/counteraudit-integration.md) | Enterprise — embed agent identity in your audit trail |
 | [AI Framework Integration](docs/ai-frameworks.md) | Developers — LangChain, AutoGen, CrewAI, Node.js |
 | [Reputation Model](docs/reputation-model.md) | Everyone — how the 6-factor score works and grows |
-| [Token Economics](docs/tokenomics.md) | Investors / Legal — $CSIG supply, distribution, utility, and fee model |
+| [Direction: Oracle-First](docs/oracle-first.md) | Everyone — why this ships as a service, not a token |
 
 ---
 
@@ -47,11 +47,11 @@ graph TB
     subgraph onchain["On-Chain State Layer (EVM)"]
         ID["CountersigIdentity\nDID anchoring · pubkey storage\nAgentStatus state machine"]
         REP["CountersigReputation\n6-factor score store\noracle-written · slash-zeroed"]
-        ST["CountersigStaking\nCSIG bonds\ncommittee slash · challenge period"]
+        ST["CountersigStaking\nagent bonds (WETH/USDC at mainnet)\ncommittee slash · challenge period"]
     end
 
-    subgraph oracle["Oracle Network (Phase 2)"]
-        OC["Reputation Oracle\n24h epoch aggregation"]
+    subgraph oracle["Reputation Oracle (live)"]
+        OC["Reputation Oracle\nhourly epoch aggregation\nattestation + flag feeds"]
     end
 
     A <-->|"PKI challenge-response"| B
@@ -71,7 +71,7 @@ graph TB
 |---|---|
 | [`CountersigIdentity`](src/CountersigIdentity.sol) | DID anchoring. Stores operator address, Ed25519 public key, and `AgentStatus`. Computes `didHash` on-chain. |
 | [`CountersigReputation`](src/CountersigReputation.sol) | Oracle-written reputation store. Exposes `getTotalScore()` and `meetsThreshold()` for on-chain consumers. |
-| [`CountersigStaking`](src/CountersigStaking.sol) | `$CSIG` bond management. Multisig committee initiates slashes with a 7-day challenge window. Permissionless execution after timelock. |
+| [`CountersigStaking`](src/CountersigStaking.sol) | Agent bond management. Multisig committee initiates slashes with a 7-day challenge window. Permissionless execution after timelock. The bond token is set by address at deploy: the testnet faucet token today, an established asset (WETH/USDC) at mainnet — the protocol never requires a native token. |
 
 All three use UUPS upgradeable proxies (OpenZeppelin v5), controlled by a governance timelock on mainnet.
 
@@ -143,17 +143,17 @@ Key invariants:
 
 Scores are computed off-chain by the oracle network and written to `CountersigReputation`. The contract stores and serves; it does not compute.
 
-| Factor | Max | Source | Formula |
-|---|---|---|---|
-| Fee Activity | 30 | On-chain transaction volume | `min(30, floor(totalFeesUSD / 100))` |
-| Success Rate | 25 | Cryptographic task attestations | `floor(successRate * 25)` |
-| Age | 20 | Registration timestamp | `min(20, floor(log₂(days+1) × 4))` |
-| External Trust | 15 | SAID Protocol / Gitcoin Passport | `floor(externalScore / 100 × 15)` |
-| Community | 5 | Unresolved flags | `max(0, 5 − flags × 2)` |
-| Propagation | 5 | Trust graph network effects | oracle-computed |
-| **Total** | **100** | | |
+| Factor | Max | Source | Formula | Status |
+|---|---|---|---|---|
+| Fee Activity | 30 | Attestation volume (proxy for paid activity) | `min(30, floor(attestations / 10))` | live |
+| Success Rate | 25 | Task attestations from consumers (e.g. CounterAudit) | `floor((successful / total) × 25)` | live |
+| Age | 20 | Registration timestamp | `min(20, floor(log₂(days+1) × 4))` | live |
+| External Trust | 15 | SAID Protocol / Gitcoin Passport | — | Phase 2 |
+| Community | 5 | Flags from watchdogs (e.g. HoodScan) | `max(0, 5 − flags × 2)` | live |
+| Propagation | 5 | Agent-vouching trust graph | — | Phase 2 |
+| **Total** | **100** | | | |
 
-The age formula reaches 20 around day 31 (logarithmic). A new agent cannot exceed 50 without sustained economic activity over time.
+The age formula reaches 20 around day 31 (logarithmic). The two Phase 2 factors contribute 0 today, so a live score currently maxes at 80. A new agent with no work history sits near the community baseline (5) and climbs only as real attestations and age accrue — which is what makes the number meaningful. Success/fee signals come from consuming platforms reporting job outcomes; community flags come from watchdog services reporting misbehavior. See the [Reputation Model](docs/reputation-model.md) guide for provenance detail.
 
 ---
 
@@ -211,7 +211,7 @@ sequenceDiagram
     participant ID as CountersigIdentity
 
     Note over Op: Generate Ed25519 keypair off-chain
-    Op->>ST: depositStake(didHash, minimumCSIG)
+    Op->>ST: depositStake(didHash, minimumBond)
     ST-->>Op: stake recorded
     Op->>ID: registerAgent(agentAddress, ed25519PubKey)
     ID->>ID: didHash = keccak256("did:countersig:" + chainId + ":" + agentAddress)
@@ -395,7 +395,7 @@ Countersig is designed as an open identity layer. Any system that needs to know 
 
 ### CounterAudit
 
-[CounterAudit](https://counteraudit.io) is the first integration partner. When an ingest call includes `agent_did`, CounterAudit queries the Countersig contracts at seal time and embeds the agent's identity and reputation score inside the AES-GCM seal. The data is covered by RFC 3161 timestamp — forensically proving what the agent's reputation was at the moment of each action.
+[CounterAudit](https://counteraudit.io) is the first integration partner, and it works in both directions. When an ingest call includes `agent_did`, CounterAudit queries the Countersig contracts at seal time and embeds the agent's identity and reputation score inside the AES-GCM seal, covered by an RFC 3161 timestamp — forensically proving what the agent's reputation was at the moment of each action. When that ingest also carries an `outcome` (`success` / `failure`) for a registered agent, CounterAudit reports it to the reputation oracle, so audited work outcomes feed back into the agent's Success Rate and Fee Activity factors. Reading and writing the same reputation closes the loop.
 
 ```typescript
 // Every action your agent takes gets sealed with identity + reputation
@@ -418,6 +418,10 @@ await fetch('https://api.counteraudit.io/v1/audit/ingest', {
 
 See the [CounterAudit Integration Guide](docs/counteraudit-integration.md) for full setup instructions.
 
+### HoodScan
+
+[HoodScan](https://github.com/RunTimeAdmin/HoodScan) is a rug-risk scanner for Robinhood Chain tokens. When a scan returns a red (high-risk) verdict, it reports the token's deployer address to the reputation oracle as a community flag. If that deployer operates a registered Countersig agent, the flag lowers its Community factor — so on-chain misbehavior detected off-chain shows up in the agent's reputation. This is the watchdog half of the signal loop: consumers attest to good work, scanners flag bad actors.
+
 ### On-chain consumers
 
 Any smart contract can gate operations on an agent's reputation:
@@ -433,10 +437,12 @@ require(rep.meetsThreshold(didHash, 60), "insufficient reputation");
 
 | Phase | Timeline | Deliverables |
 |---|---|---|
-| Core Protocol | Q3 2026 | Robinhood Chain testnet (`46630`) · Sepolia legacy · `@countersig/protocol-sdk` v1.0 |
-| Oracle Network | Q4 2026 | Decentralized reputation aggregation · SAID + Gitcoin integration |
-| Mainnet | Q1 2027 | Tier-1 security audit · mainnet deployment · `$CSIG` TGE |
+| Core Protocol | Q3 2026 | Robinhood Chain testnet (`46630`) · live reputation oracle · CounterAudit attestation + HoodScan flag feeds · `@countersig/protocol-sdk` v1.0 |
+| External Trust | Q4 2026 | SAID + Gitcoin Passport (externalScore) · agent-vouching graph (propagationScore) · oracle state persistence hardening |
+| Mainnet Registries | Q1 2027 | Tier-1 security audit · registry deployment on Robinhood Chain mainnet (`4663`) with bonds and scoring fees in an established asset (WETH/USDC) — **no token launch; the oracle is the product** |
 | Cross-Chain | Q2 2027 | Solana + Base state mirroring via LayerZero |
+
+The token contracts (fixed-supply `CSIG`, vesting, public sale, operator bonds) are built and tested but intentionally shelved. They exist for one future — decentralizing the oracle operator set once scoring volume justifies multiple independent operators — not as a fundraising event. See [Direction: Oracle-First](docs/oracle-first.md).
 
 ---
 
