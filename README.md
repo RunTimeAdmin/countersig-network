@@ -1,8 +1,8 @@
 # Countersig Network
 
-**On-chain identity, reputation, and staking for autonomous AI agents.**
+**Computed reputation and staked slashing for autonomous AI agents, on top of ERC-8004.**
 
-As AI agents become independent economic actors, the absence of verifiable Non-Human Identity (NHI) is a structural gap. Agents can impersonate peers, game reputation systems, and act without accountability. Countersig solves this by anchoring W3C Decentralized Identifiers on-chain, enforcing Ed25519 PKI authentication off-chain, and securing agent reputation through a staked cryptoeconomic model.
+As AI agents become independent economic actors, they need a trust score that means something and accountability that costs something. [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) gives agents a standard on-chain identity and a raw feedback ledger, but deliberately leaves out the hard parts: computing a trustworthy score from that feedback, and putting slashable stake behind it. Countersig is that layer. It takes ERC-8004 as the identity and feedback substrate, computes a normalized reputation score with an oracle, and enforces bonds and slashing — the accountability the standard omits. (Ed25519 PKI challenge-response for agent-to-agent auth rides alongside.)
 
 > **There is no $CSIG token for sale — and no token launch is planned.** Countersig is an oracle and registry *service*, not a token. There has been no token generation event, no public sale, and no listing anywhere. Any tradeable token claiming to be "$CSIG" or "Countersig" on pump.fun or elsewhere is a scam and was not created by this team. Our brand assets were stolen for one such token. See [Direction: Oracle-First](docs/oracle-first.md) for why the token is deferred, and treat this repository and [countersig.network](https://countersig.network) as the only canonical sources.
 >
@@ -10,7 +10,7 @@ As AI agents become independent economic actors, the absence of verifiable Non-H
 
 ### This repo vs. the Countersig SaaS platform
 
-This repository (`countersig-network`) is the **decentralized protocol**: on-chain identity, reputation, and staking with no central authority. Trust here is enforced by cryptography and cryptoeconomics — nothing to sign up for, nothing to trust us on.
+This repository (`countersig-network`) is the **decentralized protocol**: computed reputation and staked slashing on top of ERC-8004 identity, with no central authority. Trust here is enforced by cryptography and cryptoeconomics — nothing to sign up for, nothing to trust us on.
 
 There is a **separate product**, the Countersig SaaS platform (repo: [`RunTimeAdmin/Countersig`](https://github.com/RunTimeAdmin/Countersig)), which ships its own npm packages — `@countersig/sdk`, `@countersig/verify`, `@countersig/mcp`, `@countersig/react`. That platform is a centralized, hosted NHI verification service. It is a different product with a different trust model, built by the same team, but it is **not this protocol** and does not read from or write to the contracts below.
 
@@ -67,17 +67,23 @@ graph TB
 
 ## Contracts
 
+> **Identity layer: ERC-8004.** Countersig has adopted the [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) Identity Registry as the canonical agent registry and no longer maintains a competing one. Countersig is the **computed-reputation and staked-slashing layer on top of the standard** — the parts ERC-8004 deliberately leaves out. See [ADR 0001](docs/adr/0001-erc8004-as-identity-layer.md).
+
 | Contract | Role |
 |---|---|
-| [`CountersigIdentity`](src/CountersigIdentity.sol) | DID anchoring. Stores operator address, Ed25519 public key, and `AgentStatus`. Computes `didHash` on-chain. |
-| [`CountersigReputation`](src/CountersigReputation.sol) | Oracle-written reputation store. Exposes `getTotalScore()` and `meetsThreshold()` for on-chain consumers. |
-| [`CountersigStaking`](src/CountersigStaking.sol) | Agent bond management. Multisig committee initiates slashes with a 7-day challenge window. Permissionless execution after timelock. The bond token is set by address at deploy: the testnet faucet token today, an established asset (WETH/USDC) at mainnet — the protocol never requires a native token. |
+| [`CountersigReputation`](src/CountersigReputation.sol) | **Computed-score anchor.** Stores the oracle's normalized, capped 6-factor score — the layer *above* ERC-8004's raw feedback. Exposes `getTotalScore()` and `meetsThreshold()` for on-chain consumers. |
+| [`CountersigStaking`](src/CountersigStaking.sol) | **Staked accountability.** Agent bond management with committee-initiated slashing (7-day challenge window, permissionless execution after timelock). No ERC-8004 equivalent — this is the differentiator. Bond token is set by address at deploy: the testnet faucet token today, an established asset (WETH/USDC) at mainnet — the protocol never requires a native token. |
+| [`CountersigIdentity`](src/CountersigIdentity.sol) | **Legacy.** Original `did:countersig` registry + on-chain Ed25519 PKI. Deprecated in favor of the ERC-8004 Identity Registry; kept for continuity of already-registered testnet agents. Its non-redundant part (the on-chain Ed25519 auth key + slash status) becomes an extension keyed to an ERC-8004 agent id. |
 
-All three use UUPS upgradeable proxies (OpenZeppelin v5), controlled by a governance timelock on mainnet.
+The retained contracts use UUPS upgradeable proxies (OpenZeppelin v5), controlled by a governance timelock on mainnet.
 
 ---
 
-## DID Method
+## DID Method (legacy)
+
+> **Deprecated.** The `did:countersig` method below is retained for the testnet
+> agents already registered on `CountersigIdentity`. New agents are identified by
+> their ERC-8004 agent id; see [ADR 0001](docs/adr/0001-erc8004-as-identity-layer.md).
 
 **Format:** `did:countersig:<chainId>:<agentAddress>`
 

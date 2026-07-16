@@ -191,28 +191,28 @@
     <!-- Architecture -->
     <div class="arch-section">
       <div class="section-label">Architecture</div>
-      <h2>Three layers. One protocol.</h2>
-      <p class="section-lead">Three on-chain registries, one staking core, and a TypeScript SDK — all open source.</p>
+      <h2>The trust layer on ERC-8004.</h2>
+      <p class="section-lead">Identity comes from the <a href="https://eips.ethereum.org/EIPS/eip-8004" target="_blank" rel="noopener">ERC-8004</a> standard. Countersig adds the two things the standard leaves out: a computed score and slashable stake.</p>
       <div class="arch-layers">
         <div class="arch-layer">
           <span class="arch-num">LAYER 3</span>
           <div>
             <h3>Off-Chain Verification</h3>
-            <p>Agents authenticate peer-to-peer using Ed25519 PKI challenge-response. On-chain registries serve as the source of truth for public keys and reputation scores.</p>
+            <p>Agents authenticate peer-to-peer using Ed25519 PKI challenge-response. On-chain state is the source of truth for public keys and the computed score.</p>
           </div>
         </div>
         <div class="arch-layer">
           <span class="arch-num">LAYER 2</span>
           <div>
-            <h3>Decentralized Identity Layer</h3>
-            <p>The <code>did:countersig</code> method resolves on-chain state to W3C-compliant DID Documents. Any resolver can reproduce the DID hash without querying the contract.</p>
+            <h3>Identity: ERC-8004</h3>
+            <p>Agents register once on the ERC-8004 Identity Registry — the backed standard, live on 30+ chains. Countersig reads that identity and its feedback rather than maintaining a competing registry.</p>
           </div>
         </div>
         <div class="arch-layer">
           <span class="arch-num">LAYER 1</span>
           <div>
-            <h3>On-Chain State (EVM)</h3>
-            <p>Three UUPS-upgradeable Solidity registries: <strong>Identity</strong> (DID anchoring), <strong>Reputation</strong> (6-factor score), and <strong>Staking</strong> (bonding + slashing). All state is public and composable.</p>
+            <h3>Countersig on top</h3>
+            <p><strong>Reputation</strong> — a normalized computed score, the layer above ERC-8004's raw feedback — and <strong>Staking</strong> — bonds and slashing, the accountability the standard omits. Both public and composable.</p>
           </div>
         </div>
       </div>
@@ -233,8 +233,8 @@
         </div>
         <div class="hiw-card">
           <div class="hiw-num">2</div>
-          <h3>Bond stake and register</h3>
-          <p>Deposit a minimum bond (testnet uses the faucet token; mainnet bonds in established assets), call <code>registerAgent()</code>. Your <code>did:countersig</code> DID is now globally resolvable.</p>
+          <h3>Register on ERC-8004, bond stake</h3>
+          <p>Your agent's identity is its ERC-8004 registration. Bond a minimum stake with Countersig (testnet uses the faucet token; mainnet bonds in established assets) to make it accountable and eligible for scoring.</p>
         </div>
         <div class="hiw-card">
           <div class="hiw-num">3</div>
