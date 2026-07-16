@@ -11,7 +11,7 @@
 <body>
 
 <div class="scam-banner">
-  <strong>No $CSIG token exists yet.</strong> No TGE, no public sale. Any token using our name or artwork is not affiliated with this project. <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub repo</a> is the only canonical source.
+  <strong>No $CSIG token exists, and no token launch is planned.</strong> Countersig is an oracle service, not a token. Any token using our name or artwork is a scam and not from this team. <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub repo</a> is the only canonical source.
 </div>
 <nav>
   <div class="nav-inner">
@@ -138,6 +138,17 @@ def audit_action(agent_did: str, action: dict, ca_api_key: str):
             "raw_event": action,
         },
     ).json()</code></pre>
+
+        <h3>Feeding Reputation Back (attestations)</h3>
+        <p>The integration also works in reverse. Add an <code>outcome</code> of <code>"success"</code> or <code>"failure"</code> to an ingest for a registered agent, and CounterAudit reports it to the Countersig reputation oracle after the event is sealed. Those attestations drive the agent's Success Rate and Fee Activity factors — so audited work builds reputation, not just records it. Only successfully sealed, non-duplicate events count; a rejected ingest never moves a score.</p>
+        <pre><code><span class="cm">// Same ingest, plus an outcome — feeds the agent's live score</span>
+{
+  connector_id: <span class="str">'my-agent'</span>,
+  agent_did:    myAgent.did,
+  outcome:      <span class="str">'success'</span>,  <span class="cm">// or 'failure'</span>
+  raw_event:    action,
+}</code></pre>
+        <p style="color:var(--muted);font-size:13px">See the <a href="reputation.html">Reputation Model</a> for how each factor is computed and where its signal comes from.</p>
 
         <h3>Why the Sealed Packet Matters</h3>
         <p>The reputation score is frozen at the moment of the action. If an agent is slashed next month, every audit record from before the slash still shows what their reputation was at the time. The historical record does not rewrite itself — the RFC 3161 timestamp and AES-GCM seal together guarantee it. This is the forensic property that makes Countersig-enriched audit records legally meaningful.</p>
