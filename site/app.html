@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Fees — Countersig Network</title>
+  <meta name="description" content="Deposit scoring fees for your AI agent on Countersig Network (Robinhood Chain testnet)." />
+  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <link rel="stylesheet" href="assets/style.css" />
+  <style>
+    .app-wrap { max-width: 760px; margin: 48px auto; padding: 0 24px; }
+    .app-card { background: var(--surface, #0d1017); border: 1px solid var(--border); border-radius: 12px; padding: 28px; margin-bottom: 24px; }
+    .app-card h2 { margin: 0 0 6px; font-size: 20px; }
+    .app-card .sub { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+    .kv { display: grid; grid-template-columns: 160px 1fr; gap: 8px 16px; font-size: 14px; margin: 14px 0; }
+    .kv dt { color: var(--muted); }
+    .kv dd { margin: 0; font-family: var(--font-mono); font-size: 13px; word-break: break-all; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+    input[type="text"] { flex: 1; min-width: 220px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text, #e6e9f2); font-family: var(--font-mono); font-size: 13px; }
+    input[type="text"]:focus { outline: none; border-color: var(--accent); }
+    .btn[disabled] { opacity: 0.45; pointer-events: none; }
+    .pill-ok { color: #4ade80; } .pill-warn { color: #fbbf24; } .pill-err { color: #f87171; }
+    #log { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; min-height: 40px; max-height: 220px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+    #log a { color: var(--accent); }
+    .netnote { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+<div class="scam-banner">
+  <strong>No $CSIG token exists.</strong> No TGE, no public sale — the testnet token below is a valueless faucet token. Any tradeable token using our name is a scam. <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub repo</a> is the only canonical source.
+</div>
+<nav>
+  <div class="nav-inner">
+    <a href="./" class="logo">countersig<span class="dot">.</span>network</a>
+    <ul class="nav-links">
+      <li><a href="docs/quickstart.html">Quickstart</a></li>
+      <li><a href="docs/reputation.html">Reputation</a></li>
+      <li><a href="docs/counteraudit.html">CounterAudit</a></li>
+      <li><a href="app.html" class="active">App</a></li>
+      <li><a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="app-wrap">
+  <h1 style="font-size:28px;margin-bottom:4px">Agent Scoring Fees</h1>
+  <p class="netnote">Robinhood Chain testnet (46630) · fee registry
+    <a id="feesLink" href="#" target="_blank" rel="noopener"><code>0x9a9b…e2bb</code></a>
+    · current fee: <strong id="feeNow">…</strong> <span id="feeNote"></span>
+  </p>
+
+  <div class="app-card">
+    <h2>Wallet</h2>
+    <p class="sub">Reads work without a wallet. Deposits, withdrawals, and the faucet need one on chain 46630.</p>
+    <div class="row">
+      <button class="btn btn-primary" id="connectBtn">Connect Wallet</button>
+      <span id="walletStatus" class="netnote">not connected</span>
+    </div>
+  </div>
+
+  <div class="app-card">
+    <h2>Agent Lookup</h2>
+    <p class="sub">Any agent address — defaults to your connected wallet.</p>
+    <div class="row">
+      <input type="text" id="agentAddr" placeholder="0x… agent address" spellcheck="false" />
+      <button class="btn btn-secondary" id="lookupBtn">Look up</button>
+    </div>
+    <dl class="kv" id="agentInfo" style="display:none">
+      <dt>DID</dt><dd id="didStr"></dd>
+      <dt>didHash</dt><dd id="didHash"></dd>
+      <dt>Registered</dt><dd id="regStatus"></dd>
+      <dt>Reputation score</dt><dd id="score"></dd>
+      <dt>Fee balance</dt><dd id="feeBal"></dd>
+      <dt>Covered this epoch</dt><dd id="covered"></dd>
+    </dl>
+  </div>
+
+  <div class="app-card">
+    <h2>Deposit / Withdraw</h2>
+    <p class="sub">Prepay scoring fees for the agent above. The oracle deducts one fee per scoring epoch; at fee 0 (bootstrap) deposits simply sit as credit. Withdrawals go to the agent's operator wallet only.</p>
+    <div class="row">
+      <input type="text" id="amount" placeholder="amount in CSIG, e.g. 100" spellcheck="false" />
+      <button class="btn btn-primary" id="depositBtn" disabled>Approve + Deposit</button>
+      <button class="btn btn-secondary" id="withdrawBtn" disabled>Withdraw</button>
+      <button class="btn btn-ghost" id="faucetBtn" disabled>Get 1,000 test CSIG</button>
+    </div>
+    <p class="netnote">Wallet CSIG balance: <span id="csigBal">—</span></p>
+  </div>
+
+  <div class="app-card">
+    <h2>Activity</h2>
+    <div id="log">Ready.</div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">
+      <a href="./" style="font-family:var(--font-mono);font-size:13px;color:var(--muted)">countersig.network</a> &nbsp;·&nbsp; MIT License
+    </div>
+    <div class="footer-links">
+      <a href="docs/quickstart.html">Quickstart</a>
+      <a href="docs/reputation.html">Reputation</a>
+      <a href="https://github.com/RunTimeAdmin/countersig-network" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://t.me/countersig_network" target="_blank" rel="noopener">Telegram</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+"use strict";
+// No external libraries on purpose: a CDN script on a wallet page is a supply-chain risk.
+// Reads go straight to the public RPC; writes go through the user's wallet.
+
+const CHAIN_ID = 46630, CHAIN_HEX = "0xb626";
+const RPC = "https://rpc.testnet.chain.robinhood.com";
+const EXPLORER = "https://explorer.testnet.chain.robinhood.com";
+const IDENTITY   = "0xCCF2Fd69c07EDFbc3C215cfD31e2F20FC208A16C";
+const REPUTATION = "0xbB0c9C2DF28af31905dEfEa04c80372C0909f1bF";
+const FEES       = "0x9a9b6A49f3FE1C02Fb1b5cB7f2911Add0ce2e2bb";
+const CSIG       = "0x7E44aF56d14EBfd16D5D7Ba4F011b5206d487D55";
+
+// 4-byte selectors, precomputed with `cast sig`
+const SEL = {
+  computeDidHash: "0xc5d4962d", identities: "0x81638e9b", getTotalScore: "0x2522be94",
+  epochFee: "0x41e4cfa8", balance: "0x89eba421", isCovered: "0xcb607e4f",
+  depositFor: "0x1da1bbfb", withdraw: "0x040cf020",
+  approve: "0x095ea7b3", allowance: "0xdd62ed3e", balanceOf: "0x70a08231", faucet: "0x57915897",
+};
+
+const $ = (id) => document.getElementById(id);
+let account = null, currentDidHash = null, currentAgent = null;
+
+function logLine(html) {
+  const el = $("log");
+  el.innerHTML += (el.innerHTML ? "\n" : "") + html;
+  el.scrollTop = el.scrollHeight;
+}
+const txLink = (h) => `<a href="${EXPLORER}/tx/${h}" target="_blank" rel="noopener">${h.slice(0, 18)}…</a>`;
+
+// ---- encoding helpers ----
+const strip = (h) => h.startsWith("0x") ? h.slice(2) : h;
+const pad32 = (h) => strip(h).toLowerCase().padStart(64, "0");
+const encAddr = (a) => pad32(a);
+const encUint = (n) => pad32(n.toString(16));
+const word = (data, i) => "0x" + strip(data).slice(i * 64, (i + 1) * 64);
+
+function parseUnits18(s) {
+  s = s.trim();
+  if (!/^\d+(\.\d{1,18})?$/.test(s)) throw new Error("bad amount");
+  const [i, f = ""] = s.split(".");
+  return BigInt(i) * 10n ** 18n + BigInt(f.padEnd(18, "0"));
+}
+function formatUnits18(v) {
+  const i = v / 10n ** 18n, f = (v % 10n ** 18n).toString().padStart(18, "0").slice(0, 4).replace(/0+$/, "");
+  return f ? `${i}.${f}` : i.toString();
+}
+
+// ---- chain io ----
+async function rpcRead(to, data) {
+  const body = { jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to, data }, "latest"] };
+  const res = await fetch(RPC, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await res.json();
+  if (j.error) throw new Error(j.error.message);
+  return j.result;
+}
+async function sendTx(to, data) {
+  const hash = await window.ethereum.request({
+    method: "eth_sendTransaction",
+    params: [{ from: account, to, data }],
+  });
+  logLine(`tx sent ${txLink(hash)} — waiting…`);
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 2500));
+    const rec = await window.ethereum.request({ method: "eth_getTransactionReceipt", params: [hash] });
+    if (rec) {
+      if (rec.status === "0x1") { logLine(`<span class="pill-ok">confirmed</span> in block ${parseInt(rec.blockNumber, 16)}`); return; }
+      throw new Error("transaction reverted");
+    }
+  }
+  throw new Error("timed out waiting for receipt");
+}
+
+// ---- wallet ----
+async function connect() {
+  if (!window.ethereum) { logLine('<span class="pill-err">No wallet found — install MetaMask.</span>'); return; }
+  const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+  account = accounts[0];
+  const chain = await window.ethereum.request({ method: "eth_chainId" });
+  if (chain !== CHAIN_HEX) {
+    try {
+      await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_HEX }] });
+    } catch (e) {
+      await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{
+        chainId: CHAIN_HEX, chainName: "Robinhood Chain Testnet",
+        nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+        rpcUrls: [RPC], blockExplorerUrls: [EXPLORER],
+      }]});
+    }
+  }
+  $("walletStatus").innerHTML = `<span class="pill-ok">${account.slice(0, 6)}…${account.slice(-4)} on 46630</span>`;
+  ["depositBtn", "withdrawBtn", "faucetBtn"].forEach(id => $(id).disabled = false);
+  if (!$("agentAddr").value) $("agentAddr").value = account;
+  refreshCsigBalance();
+  lookup();
+}
+
+async function refreshCsigBalance() {
+  if (!account) return;
+  const bal = BigInt(await rpcRead(CSIG, SEL.balanceOf + encAddr(account)));
+  $("csigBal").textContent = formatUnits18(bal) + " CSIG";
+}
+
+// ---- lookup ----
+async function lookup() {
+  const addr = $("agentAddr").value.trim();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(addr)) { logLine('<span class="pill-err">Enter a valid 0x address.</span>'); return; }
+  currentAgent = addr;
+  try {
+    const didHash = await rpcRead(IDENTITY, SEL.computeDidHash + encAddr(addr));
+    currentDidHash = didHash;
+    const ident = await rpcRead(IDENTITY, SEL.identities + pad32(didHash));
+    const registeredAt = BigInt(word(ident, 4));
+    const statusNum = Number(BigInt(word(ident, 3)));
+    const statusStr = ["Active", "Suspended", "Slashed"][statusNum] ?? "?";
+    const bal = BigInt(await rpcRead(FEES, SEL.balance + pad32(didHash)));
+    const covered = BigInt(await rpcRead(FEES, SEL.isCovered + pad32(didHash))) === 1n;
+    $("didStr").textContent = `did:countersig:${CHAIN_ID}:${addr}`;
+    $("didHash").textContent = didHash;
+    if (registeredAt !== 0n) {
+      const score = BigInt(await rpcRead(REPUTATION, SEL.getTotalScore + pad32(didHash)));
+      $("regStatus").innerHTML = `<span class="pill-ok">yes — ${statusStr}</span>`;
+      $("score").textContent = `${score} / 100`;
+    } else {
+      $("regStatus").innerHTML = '<span class="pill-warn">not registered</span> — see <a href="docs/quickstart.html">Quickstart</a>';
+      $("score").textContent = "—";
+    }
+    $("feeBal").textContent = formatUnits18(bal) + " CSIG";
+    $("covered").innerHTML = covered ? '<span class="pill-ok">yes</span>' : '<span class="pill-err">no — deposit below</span>';
+    $("agentInfo").style.display = "";
+  } catch (e) {
+    logLine(`<span class="pill-err">lookup failed: ${e.message}</span>`);
+  }
+}
+
+// ---- actions ----
+async function deposit() {
+  try {
+    if (!currentDidHash) await lookup();
+    const amt = parseUnits18($("amount").value);
+    const allowance = BigInt(await rpcRead(CSIG, SEL.allowance + encAddr(account) + encAddr(FEES)));
+    if (allowance < amt) {
+      logLine(`approving ${formatUnits18(amt)} CSIG…`);
+      await sendTx(CSIG, SEL.approve + encAddr(FEES) + encUint(amt));
+    }
+    logLine(`depositing ${formatUnits18(amt)} CSIG for agent…`);
+    await sendTx(FEES, SEL.depositFor + pad32(currentDidHash) + encUint(amt));
+    await lookup(); await refreshCsigBalance();
+  } catch (e) { logLine(`<span class="pill-err">${e.message}</span>`); }
+}
+async function withdrawFees() {
+  try {
+    if (!currentDidHash) await lookup();
+    const amt = parseUnits18($("amount").value);
+    logLine(`withdrawing ${formatUnits18(amt)} CSIG (operator only)…`);
+    await sendTx(FEES, SEL.withdraw + pad32(currentDidHash) + encUint(amt));
+    await lookup(); await refreshCsigBalance();
+  } catch (e) { logLine(`<span class="pill-err">${e.message}</span>`); }
+}
+async function faucet() {
+  try {
+    logLine("requesting 1,000 test CSIG from faucet…");
+    await sendTx(CSIG, SEL.faucet + encUint(1000n * 10n ** 18n));
+    await refreshCsigBalance();
+  } catch (e) { logLine(`<span class="pill-err">${e.message} (faucet has a cooldown)</span>`); }
+}
+
+// ---- init ----
+(async function init() {
+  $("feesLink").href = `${EXPLORER}/address/${FEES}`;
+  $("connectBtn").onclick = connect;
+  $("lookupBtn").onclick = lookup;
+  $("depositBtn").onclick = deposit;
+  $("withdrawBtn").onclick = withdrawFees;
+  $("faucetBtn").onclick = faucet;
+  try {
+    const fee = BigInt(await rpcRead(FEES, SEL.epochFee));
+    $("feeNow").textContent = formatUnits18(fee) + " CSIG/epoch";
+    $("feeNote").textContent = fee === 0n ? "(bootstrap: scoring is free, gating disabled)" : "";
+  } catch (e) {
+    $("feeNow").textContent = "unavailable";
+    logLine(`<span class="pill-err">RPC read failed: ${e.message}</span>`);
+  }
+})();
+</script>
+
+</body>
+</html>
