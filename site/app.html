@@ -330,7 +330,7 @@ async function withdrawFees() {
 }
 async function faucet() {
   try {
-    logLine(`requesting 1,000 test ${tokenSymbol} from faucet…`);
+    logLine(`requesting 1,000 ${tokenSymbol} from faucet…`);
     await sendTx(tokenAddr, SEL.faucet + encUint(1000n * 10n ** tokenDecimals));
     await refreshCsigBalance();
   } catch (e) { logLine(`<span class="pill-err">${e.message} (testnet faucet only, has a cooldown)</span>`); }
@@ -350,11 +350,14 @@ async function faucet() {
     tokenAddr = "0x" + strip(await rpcRead(FEES, SEL.csig)).slice(24);
     tokenSymbol = decodeString(await rpcRead(tokenAddr, SEL.symbol));
     tokenDecimals = BigInt(await rpcRead(tokenAddr, SEL.decimals));
+    // on testnet, make it impossible to read the faucet token as a real asset
+    if (CHAIN_ID === 46630) tokenSymbol = "test " + tokenSymbol;
     $("amount").placeholder = `amount in ${tokenSymbol}, e.g. 100`;
-    $("faucetBtn").textContent = `Get 1,000 test ${tokenSymbol}`;
+    $("faucetBtn").textContent = `Get 1,000 ${tokenSymbol}`;
     const fee = BigInt(await rpcRead(FEES, SEL.epochFee));
     $("feeNow").textContent = `${formatUnits(fee)} ${tokenSymbol}/epoch`;
-    $("feeNote").textContent = fee === 0n ? "(bootstrap: scoring is free, gating disabled)" : "";
+    $("feeNote").textContent = (fee === 0n ? "(bootstrap: scoring is free, gating disabled — " : "(")
+      + "fees use a valueless testnet faucet token, not a tradeable asset)";
   } catch (e) {
     $("feeNow").textContent = "unavailable";
     logLine(`<span class="pill-err">RPC read failed: ${e.message}</span>`);
