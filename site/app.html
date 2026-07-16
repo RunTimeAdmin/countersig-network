@@ -80,12 +80,12 @@
     <h2>Deposit / Withdraw</h2>
     <p class="sub">Prepay scoring fees for the agent above. The oracle deducts one fee per scoring epoch; at fee 0 (bootstrap) deposits simply sit as credit. Withdrawals go to the agent's operator wallet only.</p>
     <div class="row">
-      <input type="text" id="amount" placeholder="amount in CSIG, e.g. 100" spellcheck="false" />
+      <input type="text" id="amount" placeholder="amount, e.g. 100" spellcheck="false" />
       <button class="btn btn-primary" id="depositBtn" disabled>Approve + Deposit</button>
       <button class="btn btn-secondary" id="withdrawBtn" disabled>Withdraw</button>
-      <button class="btn btn-ghost" id="faucetBtn" disabled>Get 1,000 test CSIG</button>
+      <button class="btn btn-ghost" id="faucetBtn" disabled>Get test tokens</button>
     </div>
-    <p class="netnote">Wallet CSIG balance: <span id="csigBal">—</span></p>
+    <p class="netnote">Wallet balance: <span id="csigBal">—</span></p>
   </div>
 
   <div class="app-card">
@@ -127,10 +127,13 @@ const SEL = {
   epochFee: "0x41e4cfa8", balance: "0x89eba421", isCovered: "0xcb607e4f",
   depositFor: "0x1da1bbfb", withdraw: "0x040cf020",
   approve: "0x095ea7b3", allowance: "0xdd62ed3e", balanceOf: "0x70a08231", faucet: "0x57915897",
+  csig: "0x0b5ae4d9", symbol: "0x95d89b41", decimals: "0x313ce567",
 };
 
 const $ = (id) => document.getElementById(id);
 let account = null, currentDidHash = null, currentAgent = null;
+// fee token metadata, read from the chain at load (CSIG on testnet, USDC/WETH on mainnet)
+let tokenAddr = CSIG, tokenSymbol = "tokens", tokenDecimals = 18n;
 
 function logLine(html) {
   const el = $("log");
@@ -146,15 +149,25 @@ const encAddr = (a) => pad32(a);
 const encUint = (n) => pad32(n.toString(16));
 const word = (data, i) => "0x" + strip(data).slice(i * 64, (i + 1) * 64);
 
-function parseUnits18(s) {
+function parseUnits(s) {
   s = s.trim();
-  if (!/^\d+(\.\d{1,18})?$/.test(s)) throw new Error("bad amount");
+  const d = Number(tokenDecimals);
+  if (!new RegExp(`^\\d+(\\.\\d{1,${d}})?$`).test(s)) throw new Error("bad amount");
   const [i, f = ""] = s.split(".");
-  return BigInt(i) * 10n ** 18n + BigInt(f.padEnd(18, "0"));
+  return BigInt(i) * 10n ** tokenDecimals + BigInt(f.padEnd(d, "0"));
 }
-function formatUnits18(v) {
-  const i = v / 10n ** 18n, f = (v % 10n ** 18n).toString().padStart(18, "0").slice(0, 4).replace(/0+$/, "");
+function formatUnits(v) {
+  const d = Number(tokenDecimals);
+  const i = v / 10n ** tokenDecimals, f = (v % 10n ** tokenDecimals).toString().padStart(d, "0").slice(0, 4).replace(/0+$/, "");
   return f ? `${i}.${f}` : i.toString();
+}
+function decodeString(hex) {
+  const data = strip(hex);
+  const len = Number(BigInt("0x" + data.slice(64, 128)));
+  const bytes = data.slice(128, 128 + len * 2);
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 2) out += String.fromCharCode(parseInt(bytes.slice(i, i + 2), 16));
+  return out;
 }
 
 // ---- chain io ----
@@ -208,8 +221,8 @@ async function connect() {
 
 async function refreshCsigBalance() {
   if (!account) return;
-  const bal = BigInt(await rpcRead(CSIG, SEL.balanceOf + encAddr(account)));
-  $("csigBal").textContent = formatUnits18(bal) + " CSIG";
+  const bal = BigInt(await rpcRead(tokenAddr, SEL.balanceOf + encAddr(account)));
+  $("csigBal").textContent = formatUnits(bal) + " " + tokenSymbol;
 }
 
 // ---- lookup ----
@@ -236,7 +249,7 @@ async function lookup() {
       $("regStatus").innerHTML = '<span class="pill-warn">not registered</span> — see <a href="docs/quickstart.html">Quickstart</a>';
       $("score").textContent = "—";
     }
-    $("feeBal").textContent = formatUnits18(bal) + " CSIG";
+    $("feeBal").textContent = formatUnits(bal) + " " + tokenSymbol;
     $("covered").innerHTML = covered ? '<span class="pill-ok">yes</span>' : '<span class="pill-err">no — deposit below</span>';
     $("agentInfo").style.display = "";
   } catch (e) {
@@ -248,13 +261,13 @@ async function lookup() {
 async function deposit() {
   try {
     if (!currentDidHash) await lookup();
-    const amt = parseUnits18($("amount").value);
-    const allowance = BigInt(await rpcRead(CSIG, SEL.allowance + encAddr(account) + encAddr(FEES)));
+    const amt = parseUnits($("amount").value);
+    const allowance = BigInt(await rpcRead(tokenAddr, SEL.allowance + encAddr(account) + encAddr(FEES)));
     if (allowance < amt) {
-      logLine(`approving ${formatUnits18(amt)} CSIG…`);
-      await sendTx(CSIG, SEL.approve + encAddr(FEES) + encUint(amt));
+      logLine(`approving ${formatUnits(amt)} ${tokenSymbol}…`);
+      await sendTx(tokenAddr, SEL.approve + encAddr(FEES) + encUint(amt));
     }
-    logLine(`depositing ${formatUnits18(amt)} CSIG for agent…`);
+    logLine(`depositing ${formatUnits(amt)} ${tokenSymbol} for agent…`);
     await sendTx(FEES, SEL.depositFor + pad32(currentDidHash) + encUint(amt));
     await lookup(); await refreshCsigBalance();
   } catch (e) { logLine(`<span class="pill-err">${e.message}</span>`); }
@@ -262,18 +275,18 @@ async function deposit() {
 async function withdrawFees() {
   try {
     if (!currentDidHash) await lookup();
-    const amt = parseUnits18($("amount").value);
-    logLine(`withdrawing ${formatUnits18(amt)} CSIG (operator only)…`);
+    const amt = parseUnits($("amount").value);
+    logLine(`withdrawing ${formatUnits(amt)} ${tokenSymbol} (operator only)…`);
     await sendTx(FEES, SEL.withdraw + pad32(currentDidHash) + encUint(amt));
     await lookup(); await refreshCsigBalance();
   } catch (e) { logLine(`<span class="pill-err">${e.message}</span>`); }
 }
 async function faucet() {
   try {
-    logLine("requesting 1,000 test CSIG from faucet…");
-    await sendTx(CSIG, SEL.faucet + encUint(1000n * 10n ** 18n));
+    logLine(`requesting 1,000 test ${tokenSymbol} from faucet…`);
+    await sendTx(tokenAddr, SEL.faucet + encUint(1000n * 10n ** tokenDecimals));
     await refreshCsigBalance();
-  } catch (e) { logLine(`<span class="pill-err">${e.message} (faucet has a cooldown)</span>`); }
+  } catch (e) { logLine(`<span class="pill-err">${e.message} (testnet faucet only, has a cooldown)</span>`); }
 }
 
 // ---- init ----
@@ -285,8 +298,15 @@ async function faucet() {
   $("withdrawBtn").onclick = withdrawFees;
   $("faucetBtn").onclick = faucet;
   try {
+    // fee token metadata comes from the chain: CSIG faucet token on testnet,
+    // USDC/WETH at mainnet — nothing on this page assumes a native token
+    tokenAddr = "0x" + strip(await rpcRead(FEES, SEL.csig)).slice(24);
+    tokenSymbol = decodeString(await rpcRead(tokenAddr, SEL.symbol));
+    tokenDecimals = BigInt(await rpcRead(tokenAddr, SEL.decimals));
+    $("amount").placeholder = `amount in ${tokenSymbol}, e.g. 100`;
+    $("faucetBtn").textContent = `Get 1,000 test ${tokenSymbol}`;
     const fee = BigInt(await rpcRead(FEES, SEL.epochFee));
-    $("feeNow").textContent = formatUnits18(fee) + " CSIG/epoch";
+    $("feeNow").textContent = `${formatUnits(fee)} ${tokenSymbol}/epoch`;
     $("feeNote").textContent = fee === 0n ? "(bootstrap: scoring is free, gating disabled)" : "";
   } catch (e) {
     $("feeNow").textContent = "unavailable";
