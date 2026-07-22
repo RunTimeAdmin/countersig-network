@@ -255,6 +255,66 @@ contract CountersigStakingTest is Test {
         assertEq(csig.balanceOf(operator), before + MIN_STAKE * 2);
     }
 
+    // Regression: an operator must not be able to dodge a slash by draining the
+    // entire stake into the unbonding queue. Before the fix, initiateSlash checked
+    // only the active stake (s.amount) and reverted NoStake once everything was
+    // queued, so the committee could never even start a slash.
+    function test_exitDodge_slashStillInitiableWhenFullyQueued() public {
+        _deposit(); // 2 * MIN_STAKE
+
+        // Legitimate full-exit path: Suspend, then withdraw everything to the queue.
+        vm.prank(operator);
+        identity.updateStatus(didHash, CountersigIdentity.AgentStatus.Suspended);
+        vm.prank(operator);
+        staking.initiateWithdrawal(didHash, MIN_STAKE * 2);
+
+        assertEq(staking.getStake(didHash), 0);
+        (uint256 queued,) = staking.getPendingWithdrawal(didHash);
+        assertEq(queued, MIN_STAKE * 2);
+
+        // The committee can still initiate a slash against the queued funds.
+        vm.prank(committee);
+        staking.initiateSlash(didHash, victim, "evidence");
+
+        // ... the operator cannot claim while the slash is pending ...
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigStaking.SlashAlreadyPending.selector, didHash)
+        );
+        vm.prank(operator);
+        staking.claimWithdrawal(didHash);
+
+        // ... and after the challenge window the queued funds are swept and burned/distributed.
+        vm.warp(block.timestamp + CHALLENGE + 1);
+        staking.executeSlash(didHash);
+
+        assertEq(csig.balanceOf(address(0xdead)), (MIN_STAKE * 2) / 2);
+        (uint256 pendingAmount,) = staking.getPendingWithdrawal(didHash);
+        assertEq(pendingAmount, 0);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(CountersigStaking.NoWithdrawalPending.selector, didHash)
+        );
+        vm.prank(operator);
+        staking.claimWithdrawal(didHash);
+    }
+
+    // An Active agent must not be able to withdraw its entire backing stake in one
+    // step; full exit requires suspending first.
+    function test_initiateWithdrawal_reverts_toZeroWhileActive() public {
+        _deposit(); // 2 * MIN_STAKE
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CountersigStaking.InsufficientStake.selector,
+                didHash,
+                0,          // remaining after draining everything
+                MIN_STAKE
+            )
+        );
+        vm.prank(operator);
+        staking.initiateWithdrawal(didHash, MIN_STAKE * 2);
+    }
+
     function test_initiateWithdrawal_reverts_pendingSlash() public {
         _deposit();
 

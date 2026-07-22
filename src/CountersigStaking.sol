@@ -229,9 +229,14 @@ contract CountersigStaking is
         }
 
         uint256 remaining = s.amount - amount;
-        // If agent is still active, enforce minimum stake post-withdrawal.
+        // While Active, the remaining active stake must stay at or above minimumStake —
+        // withdrawing to zero (fully exiting) requires the operator to Suspend first (see
+        // CountersigIdentity.updateStatus). Previously a `remaining != 0` carve-out let an
+        // active agent drain its entire backing stake in one step, which the total-balance
+        // check in initiateSlash also now guards, but an active agent should never be
+        // unbacked to begin with.
         bool active = id.registeredAt != 0 && id.status == CountersigIdentity.AgentStatus.Active;
-        if (active && remaining < minimumStake && remaining != 0) {
+        if (active && remaining < minimumStake) {
             revert InsufficientStake(didHash, remaining, minimumStake);
         }
 
@@ -291,7 +296,11 @@ contract CountersigStaking is
         bytes calldata evidenceHash
     ) external nonReentrant onlyRole(SLASHING_COMMITTEE_ROLE) {
         if (victim == address(0)) revert ZeroAddress();
-        if (stakes[didHash].amount == 0) revert NoStake(didHash);
+        // Slashable balance is the active stake PLUS anything queued for withdrawal.
+        // Checking only the active stake let an operator drain everything into the
+        // unbonding queue (which executeSlash still sweeps) and thereby block the slash
+        // from ever being initiated — nullifying accountability. Gate on the total.
+        if (stakes[didHash].amount + stakes[didHash].unbondingAmount == 0) revert NoStake(didHash);
         if (slashProposals[didHash].state == SlashState.Pending) revert SlashAlreadyPending(didHash);
 
         // Write state before the external call (CEI pattern).
